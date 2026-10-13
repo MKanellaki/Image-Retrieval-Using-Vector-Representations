@@ -1,5 +1,6 @@
 #include "distance.hpp"
-
+#include <cmath>
+#include <vector>
 namespace image_search {
 
 float l2_squared(const float* a, const float* b, std::size_t dim) {
