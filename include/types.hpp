@@ -20,8 +20,8 @@ public:
     float*       row(std::size_t i)       { return data_.data() + i * cols_; }
     const float* row(std::size_t i) const { return data_.data() + i * cols_; }
 
-    void append_row(const float* r);          // grows rows_ by one
-    std::vector<float>&       raw()       { return data_; }
+    void append_row(const float* r) { data_.insert(data_.end(), r, r + cols_); ++rows_; }
+    std::vector<float>& raw() { return data_; }
     const std::vector<float>& raw() const { return data_; }
 
 private:
