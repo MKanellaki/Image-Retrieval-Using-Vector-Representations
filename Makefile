@@ -12,8 +12,7 @@ TARGET   ?= search
 BUILD    ?= build
 MODE     ?= -O2
 
-# OpenCV is only needed by the feature extraction code; these are empty if it is not installed.
-OPENCV_CFLAGS := $(shell pkg-config --cflags opencv4 2>/dev/null)
+OPENCV_CFLAGS := $(shell pkg-config --cflags opencv4 2>/dev/null | sed 's/-I/-isystem /g')
 OPENCV_LIBS   := $(shell pkg-config --libs opencv4 2>/dev/null)
 
 CXXFLAGS = -std=c++20 -Wall -Wextra -Wpedantic $(MODE) -Iinclude $(OPENCV_CFLAGS) -MMD -MP
