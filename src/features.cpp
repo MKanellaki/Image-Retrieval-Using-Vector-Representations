@@ -95,4 +95,12 @@ Matrix sample_descriptors(const Matrix& descriptors, std::size_t S, std::uint64_
     return out;
 }
 
+ExtractorFactory sift_extractor_factory() {
+    cv::setNumThreads(1);
+    return [] {
+        auto ex = std::make_shared<SiftExtractor>();
+        return ExtractFn([ex](const std::string& p) { return ex->extract(p); });
+    };
+}
+
 }
