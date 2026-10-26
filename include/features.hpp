@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <functional>
 #include "types.hpp"
 
 namespace image_search {
@@ -41,5 +42,12 @@ Matrix sample_descriptors(const Matrix& descriptors, std::size_t S, std::uint64_
 
 // Mixes a global seed with a per-item index into an independent-looking seed (splitmix64)
 std::uint64_t derive_seed(std::uint64_t seed, std::uint64_t index);
+
+// Extracts the descriptors of one image. A factory makes one per worker thread.
+using ExtractFn        = std::function<Matrix(const std::string& path)>;
+using ExtractorFactory = std::function<ExtractFn()>;
+
+// Factory that gives every worker its own SiftExtractor.
+ExtractorFactory sift_extractor_factory();
 
 }
