@@ -9,6 +9,7 @@
 
 #include "binary_io.hpp"
 #include "kmeans.hpp"
+#include "seed.hpp"
 
 namespace image_search {
 

@@ -65,13 +65,6 @@ std::uint64_t uniform_below(std::mt19937_64& rng, std::uint64_t bound) {
 
 }  // namespace
 
-std::uint64_t derive_seed(std::uint64_t seed, std::uint64_t index) {
-    std::uint64_t z = seed + 0x9E3779B97F4A7C15ULL * (index + 1);
-    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
-    z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
-    return z ^ (z >> 31);
-}
-
 Matrix sample_descriptors(const Matrix& descriptors, std::size_t S, std::uint64_t seed) {
     const std::size_t n = descriptors.rows();
     if(n <= S)
