@@ -1,5 +1,6 @@
 #include "hypercube.hpp"
 #include "distance.hpp"
+#include "seed.hpp"
 #include <algorithm>
 #include <cmath>
 #include <random>
@@ -16,17 +17,11 @@ int HypercubeIndex::compute_h(const float* p, const HashFunction& hf) const {
     return static_cast<int>(std::floor((dot + hf.t) / params_.w));
 }
 
-// f_i: Z -> {0, 1} with memoized coin flips
+// f_i: Z -> {0, 1}, a pure function of (seed, i, h).
+// The same h always gets the same bit, regardless of which points or queries came before.
 int HypercubeIndex::compute_f(std::size_t func_idx, int h_val) const {
-    auto& map = f_maps_[func_idx];
-    auto it = map.find(h_val);
-    if (it != map.end()) {
-        return it->second;
-    }
-    std::uniform_int_distribution<int> coin(0, 1);
-    const int bit = coin(rng_);
-    map[h_val] = bit;
-    return bit;
+    const std::uint64_t key = static_cast<std::uint64_t>(params_.seed) ^ static_cast<std::uint64_t>(func_idx);
+    return static_cast<int>(derive_seed(key, static_cast<std::uint64_t>(static_cast<std::int64_t>(h_val))) & 1U);
 }
 
 // Maps point p to a k-bit hypercube vertex
@@ -43,13 +38,14 @@ std::uint32_t HypercubeIndex::compute_vertex(const float* p) const {
 }
 
 HypercubeIndex::HypercubeIndex(const Matrix& dataset, const HypercubeParams& params)
-    : dataset_(&dataset), params_(params), dim_(dataset.cols()), rng_(params.seed) {
+    : dataset_(&dataset), params_(params), dim_(dataset.cols()) {
 
     // Empty dataset or invalid dimensions
     if (dataset.empty() || dim_ == 0 || params_.k <= 0) {
         return;
     }
 
+    std::mt19937 rng(params_.seed);
     std::normal_distribution<float> norm_dist(0.0f, 1.0f);
     std::uniform_real_distribution<float> uni_dist(0.0f, static_cast<float>(params_.w));
 
@@ -58,12 +54,11 @@ HypercubeIndex::HypercubeIndex(const Matrix& dataset, const HypercubeParams& par
     for (int i = 0; i < params_.k; ++i) {
         funcs_[i].v.resize(dim_);
         for (std::size_t d = 0; d < dim_; ++d) {
-            funcs_[i].v[d] = norm_dist(rng_);
+            funcs_[i].v[d] = norm_dist(rng);
         }
-        funcs_[i].t = uni_dist(rng_);
+        funcs_[i].t = uni_dist(rng);
     }
 
-    f_maps_.resize(params_.k);
     buckets_.resize(1U << params_.k);
 
     // Insert database images into hypercube vertex buckets
@@ -137,7 +132,7 @@ std::vector<ImageIndex> HypercubeIndex::query(const float* q, std::size_t max_re
     // Sort candidates by ascending distance
     std::sort(evaluated.begin(), evaluated.end(),
               [](const Candidate& a, const Candidate& b) {
-                  return a.dist < b.dist;
+                  return a.dist < b.dist || (a.dist == b.dist && a.id < b.id);
               });
 
     // Return top results up to max_results
