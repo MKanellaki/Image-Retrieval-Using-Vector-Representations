@@ -1,127 +1,10 @@
 #include "ivfflat.hpp"
 #include "distance.hpp"
+#include "kmeans.hpp"
 #include <algorithm>
-#include <cmath>
-#include <random>
+#include <utility>
 
 namespace image_search {
-
-int IVFFlatIndex::find_closest_centroid(const float* p) const {
-    int best_c = 0;
-    float best_dist = l2_squared(p, centroids_.row(0), dim_);
-    for (std::size_t c = 1; c < centroids_.rows(); ++c) {
-        float d = l2_squared(p, centroids_.row(c), dim_);
-        if (d < best_dist) {
-            best_dist = d;
-            best_c = static_cast<int>(c);
-        }
-    }
-    return best_c;
-}
-
-void IVFFlatIndex::run_kmeans() {
-    const std::size_t n = dataset_->rows();
-    const std::size_t k = std::min(static_cast<std::size_t>(params_.k), n);
-
-    centroids_ = Matrix(k, dim_);
-    std::mt19937 rng(params_.seed);
-
-    // If dataset has fewer points than k, each point is its own centroid
-    if (k == n) {
-        for (std::size_t i = 0; i < n; ++i) {
-            for (std::size_t d = 0; d < dim_; ++d) {
-                centroids_.row(i)[d] = dataset_->row(i)[d];
-            }
-        }
-        return;
-    }
-
-    // k-means++ initialization
-    std::uniform_int_distribution<std::size_t> dist(0, n - 1);
-    std::size_t first = dist(rng);
-    for (std::size_t d = 0; d < dim_; ++d) {
-        centroids_.row(0)[d] = dataset_->row(first)[d];
-    }
-
-    std::vector<float> min_d(n);
-    for (std::size_t i = 0; i < n; ++i) {
-        min_d[i] = l2_squared(dataset_->row(i), centroids_.row(0), dim_);
-    }
-
-    for (std::size_t c = 1; c < k; ++c) {
-        float sum_d = 0.0f;
-        for (std::size_t i = 0; i < n; ++i) {
-            sum_d += min_d[i];
-        }
-
-        std::size_t chosen = 0;
-        if (sum_d > 0.0f) {
-            std::uniform_real_distribution<float> rdist(0.0f, sum_d);
-            float r = rdist(rng);
-            float current = 0.0f;
-            for (std::size_t i = 0; i < n; ++i) {
-                current += min_d[i];
-                if (current >= r) {
-                    chosen = i;
-                    break;
-                }
-            }
-        } else {
-            chosen = dist(rng);
-        }
-
-        for (std::size_t d = 0; d < dim_; ++d) {
-            centroids_.row(c)[d] = dataset_->row(chosen)[d];
-        }
-
-        for (std::size_t i = 0; i < n; ++i) {
-            float d = l2_squared(dataset_->row(i), centroids_.row(c), dim_);
-            if (d < min_d[i]) {
-                min_d[i] = d;
-            }
-        }
-    }
-
-    // Lloyd's algorithm
-    std::vector<int> assignments(n, -1);
-
-    for (int iter = 0; iter < params_.max_iter; ++iter) {
-        bool changed = false;
-
-        // E-step: assign points to closest centroid
-        for (std::size_t i = 0; i < n; ++i) {
-            int nearest = find_closest_centroid(dataset_->row(i));
-            if (assignments[i] != nearest) {
-                assignments[i] = nearest;
-                changed = true;
-            }
-        }
-
-        if (!changed && iter > 0) {
-            break;
-        }
-
-        // M-step: update centroids
-        std::vector<std::vector<float>> sums(k, std::vector<float>(dim_, 0.0f));
-        std::vector<int> counts(k, 0);
-
-        for (std::size_t i = 0; i < n; ++i) {
-            int c = assignments[i];
-            counts[c]++;
-            for (std::size_t d = 0; d < dim_; ++d) {
-                sums[c][d] += dataset_->row(i)[d];
-            }
-        }
-
-        for (std::size_t c = 0; c < k; ++c) {
-            if (counts[c] > 0) {
-                for (std::size_t d = 0; d < dim_; ++d) {
-                    centroids_.row(c)[d] = sums[c][d] / counts[c];
-                }
-            }
-        }
-    }
-}
 
 IVFFlatIndex::IVFFlatIndex(const Matrix& dataset, const IVFFlatParams& params)
     : dataset_(&dataset), params_(params), dim_(dataset.cols()) {
@@ -131,14 +14,18 @@ IVFFlatIndex::IVFFlatIndex(const Matrix& dataset, const IVFFlatParams& params)
         return;
     }
 
-    // Compute cluster centroids with k-means
-    run_kmeans();
+    // Cluster the database with k-means; the labels already say which list each point goes in
+    KMeansParams kp;
+    kp.k = std::min(static_cast<std::size_t>(params_.k), dataset.rows());
+    kp.max_iter = params_.max_iter;
+    kp.seed = params_.seed;
+    KMeansResult km = kmeans_fit(dataset, kp);
+    centroids_ = std::move(km.centers);
 
     // Insert database images into inverted lists
     inverted_lists_.resize(centroids_.rows());
     for (std::size_t i = 0; i < dataset.rows(); ++i) {
-        int c = find_closest_centroid(dataset.row(i));
-        inverted_lists_[c].push_back(static_cast<ImageIndex>(i));
+        inverted_lists_[km.labels[i]].push_back(static_cast<ImageIndex>(i));
     }
 }
 
@@ -205,4 +92,4 @@ std::size_t IVFFlatIndex::size() const {
     return dataset_ ? dataset_->rows() : 0;
 }
 
-}  
+}  // namespace image_search

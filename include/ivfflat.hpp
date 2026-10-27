@@ -30,12 +30,6 @@ private:
     std::size_t dim_ = 0;
     Matrix centroids_;                                    // Centroids in R^d
     std::vector<std::vector<ImageIndex>> inverted_lists_; // Inverted lists for each centroid
-
-    // Finds the index of the closest centroid to point p
-    int find_closest_centroid(const float* p) const;
-
-    // Runs k-means to compute cluster centroids
-    void run_kmeans();
 };
 
 }  // namespace image_search

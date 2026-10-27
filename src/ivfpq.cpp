@@ -1,135 +1,11 @@
 #include "ivfpq.hpp"
 #include "distance.hpp"
+#include "kmeans.hpp"
 #include <algorithm>
-#include <cmath>
-#include <random>
+#include <stdexcept>
+#include <utility>
 
 namespace image_search {
-
-int IVFPQIndex::find_closest_coarse_centroid(const float* p) const {
-    int best_c = 0;
-    float best_dist = l2_squared(p, coarse_centroids_.row(0), dim_);
-    for (std::size_t c = 1; c < coarse_centroids_.rows(); ++c) {
-        float d = l2_squared(p, coarse_centroids_.row(c), dim_);
-        if (d < best_dist) {
-            best_dist = d;
-            best_c = static_cast<int>(c);
-        }
-    }
-    return best_c;
-}
-
-Matrix IVFPQIndex::run_kmeans_sub(const std::vector<const float*>& points, std::size_t sub_dim, int k, std::uint32_t seed) {
-    const std::size_t n = points.size();
-    const std::size_t actual_k = std::min(static_cast<std::size_t>(k), n);
-
-    Matrix centroids(actual_k, sub_dim);
-    std::mt19937 rng(seed);
-
-    if (actual_k == n) {
-        for (std::size_t i = 0; i < n; ++i) {
-            for (std::size_t d = 0; d < sub_dim; ++d) {
-                centroids.row(i)[d] = points[i][d];
-            }
-        }
-        return centroids;
-    }
-
-    // k-means++ initialization
-    std::uniform_int_distribution<std::size_t> dist(0, n - 1);
-    std::size_t first = dist(rng);
-    for (std::size_t d = 0; d < sub_dim; ++d) {
-        centroids.row(0)[d] = points[first][d];
-    }
-
-    std::vector<float> min_d(n);
-    for (std::size_t i = 0; i < n; ++i) {
-        min_d[i] = l2_squared(points[i], centroids.row(0), sub_dim);
-    }
-
-    for (std::size_t c = 1; c < actual_k; ++c) {
-        float sum_d = 0.0f;
-        for (std::size_t i = 0; i < n; ++i) {
-            sum_d += min_d[i];
-        }
-
-        std::size_t chosen = 0;
-        if (sum_d > 0.0f) {
-            std::uniform_real_distribution<float> rdist(0.0f, sum_d);
-            float r = rdist(rng);
-            float current = 0.0f;
-            for (std::size_t i = 0; i < n; ++i) {
-                current += min_d[i];
-                if (current >= r) {
-                    chosen = i;
-                    break;
-                }
-            }
-        } else {
-            chosen = dist(rng);
-        }
-
-        for (std::size_t d = 0; d < sub_dim; ++d) {
-            centroids.row(c)[d] = points[chosen][d];
-        }
-
-        for (std::size_t i = 0; i < n; ++i) {
-            float d = l2_squared(points[i], centroids.row(c), sub_dim);
-            if (d < min_d[i]) {
-                min_d[i] = d;
-            }
-        }
-    }
-
-    // Lloyd's iterations
-    std::vector<int> assignments(n, -1);
-    for (int iter = 0; iter < params_.max_iter; ++iter) {
-        bool changed = false;
-
-        // E-step: assign points to closest sub-centroid
-        for (std::size_t i = 0; i < n; ++i) {
-            int best_c = 0;
-            float best_dist = l2_squared(points[i], centroids.row(0), sub_dim);
-            for (std::size_t c = 1; c < actual_k; ++c) {
-                float d = l2_squared(points[i], centroids.row(c), sub_dim);
-                if (d < best_dist) {
-                    best_dist = d;
-                    best_c = static_cast<int>(c);
-                }
-            }
-            if (assignments[i] != best_c) {
-                assignments[i] = best_c;
-                changed = true;
-            }
-        }
-
-        if (!changed && iter > 0) {
-            break;
-        }
-
-        // M-step: update sub-centroids
-        std::vector<std::vector<float>> sums(actual_k, std::vector<float>(sub_dim, 0.0f));
-        std::vector<int> counts(actual_k, 0);
-
-        for (std::size_t i = 0; i < n; ++i) {
-            int c = assignments[i];
-            counts[c]++;
-            for (std::size_t d = 0; d < sub_dim; ++d) {
-                sums[c][d] += points[i][d];
-            }
-        }
-
-        for (std::size_t c = 0; c < actual_k; ++c) {
-            if (counts[c] > 0) {
-                for (std::size_t d = 0; d < sub_dim; ++d) {
-                    centroids.row(c)[d] = sums[c][d] / counts[c];
-                }
-            }
-        }
-    }
-
-    return centroids;
-}
 
 void IVFPQIndex::build_index() {
     const std::size_t n = dataset_->rows();
@@ -148,60 +24,72 @@ void IVFPQIndex::build_index() {
         curr_offset += sub_dims_[s];
     }
 
-    // 2. Coarse clustering on the full dataset
-    std::vector<const float*> all_points(n);
-    for (std::size_t i = 0; i < n; ++i) {
-        all_points[i] = dataset_->row(i);
-    }
-    coarse_centroids_ = run_kmeans_sub(all_points, dim_, params_.k, params_.seed);
+    // 2. Coarse clustering on the full dataset; labels give each point's inverted list
+    KMeansParams coarse;
+    coarse.k = std::min(static_cast<std::size_t>(params_.k), n);
+    coarse.max_iter = params_.max_iter;
+    coarse.seed = params_.seed;
+    KMeansResult coarse_km = kmeans_fit(*dataset_, coarse);
+    coarse_centroids_ = std::move(coarse_km.centers);
 
-    // 3. Find coarse cluster assignments and compute residuals
-    std::vector<int> coarse_assignments(n);
-    std::vector<std::vector<float>> residuals(n, std::vector<float>(dim_));
-
+    // 3. Residuals with respect to the assigned coarse centroid
+    Matrix residuals(n, dim_);
     for (std::size_t i = 0; i < n; ++i) {
-        int c = find_closest_coarse_centroid(dataset_->row(i));
-        coarse_assignments[i] = c;
         const float* pt = dataset_->row(i);
-        const float* center = coarse_centroids_.row(c);
+        const float* center = coarse_centroids_.row(coarse_km.labels[i]);
+        float* r = residuals.row(i);
         for (std::size_t d = 0; d < dim_; ++d) {
-            residuals[i][d] = pt[d] - center[d];
+            r[d] = pt[d] - center[d];
         }
     }
 
-    // 4. Train codebooks for each sub-space on residuals
-    sub_centroids_.resize(m_);
-    int effective_k_sub = std::max(1, std::min(params_.k_sub, static_cast<int>(n)));
-
-    for (std::size_t s = 0; s < m_; ++s) {
-        std::vector<const float*> sub_points(n);
-        for (std::size_t i = 0; i < n; ++i) {
-            sub_points[i] = residuals[i].data() + sub_offsets_[s];
-        }
-        sub_centroids_[s] = run_kmeans_sub(sub_points, sub_dims_[s], effective_k_sub, params_.seed + s * 13 + 7);
+    // 4. Lay out the inverted lists: ids in database order, and each point's slot in its list
+    k_sub_ = std::min(static_cast<std::size_t>(std::max(1, params_.k_sub)), n);
+    if (k_sub_ > 65536) {
+        throw std::invalid_argument("IVFPQ: k_sub > 65536 does not fit a 16-bit code");
     }
+    wide_codes_ = k_sub_ > 256;
 
-    // 5. Quantize residuals and populate inverted lists
     inverted_lists_.resize(coarse_centroids_.rows());
+    std::vector<std::size_t> slot(n);
     for (std::size_t i = 0; i < n; ++i) {
-        int c = coarse_assignments[i];
-        std::vector<int> code(m_);
+        auto& ids = inverted_lists_[coarse_km.labels[i]].ids;
+        slot[i] = ids.size();
+        ids.push_back(static_cast<ImageIndex>(i));
+    }
+    for (auto& list : inverted_lists_) {
+        if (wide_codes_) {
+            list.codes16.resize(list.ids.size() * m_);
+        } else {
+            list.codes8.resize(list.ids.size() * m_);
+        }
+    }
 
-        for (std::size_t s = 0; s < m_; ++s) {
-            const float* sub_res = residuals[i].data() + sub_offsets_[s];
-            int best_sub = 0;
-            float min_d = l2_squared(sub_res, sub_centroids_[s].row(0), sub_dims_[s]);
-            for (std::size_t j = 1; j < sub_centroids_[s].rows(); ++j) {
-                float d = l2_squared(sub_res, sub_centroids_[s].row(j), sub_dims_[s]);
-                if (d < min_d) {
-                    min_d = d;
-                    best_sub = static_cast<int>(j);
-                }
-            }
-            code[s] = best_sub;
+    // 5. Train a codebook per sub-space on the residuals; its labels are the PQ codes
+    sub_centroids_.resize(m_);
+    for (std::size_t s = 0; s < m_; ++s) {
+        Matrix sub(n, sub_dims_[s]);
+        for (std::size_t i = 0; i < n; ++i) {
+            const float* r = residuals.row(i) + sub_offsets_[s];
+            std::copy(r, r + sub_dims_[s], sub.row(i));
         }
 
-        inverted_lists_[c].push_back({static_cast<ImageIndex>(i), code});
+        KMeansParams kp;
+        kp.k = k_sub_;
+        kp.max_iter = params_.max_iter;
+        kp.seed = params_.seed + s * 13 + 7;
+        KMeansResult km = kmeans_fit(sub, kp);
+        sub_centroids_[s] = std::move(km.centers);
+
+        for (std::size_t i = 0; i < n; ++i) {
+            auto& list = inverted_lists_[coarse_km.labels[i]];
+            const std::size_t at = slot[i] * m_ + s;
+            if (wide_codes_) {
+                list.codes16[at] = static_cast<std::uint16_t>(km.labels[i]);
+            } else {
+                list.codes8[at] = static_cast<std::uint8_t>(km.labels[i]);
+            }
+        }
     }
 }
 
@@ -248,39 +136,45 @@ std::vector<ImageIndex> IVFPQIndex::query(const float* q, std::size_t max_result
         float dist;
     };
     std::vector<Candidate> evaluated;
+    std::vector<float> q_res(dim_);
+    std::vector<float> lut(m_ * k_sub_);   // lut[s * k_sub_ + j] = || q_res[s] - sub_centroid[s][j] ||^2
 
     for (std::size_t p = 0; p < probes; ++p) {
         int c_id = c_dists[p].id;
         const float* c_center = coarse_centroids_.row(c_id);
 
         // Residual of query vector with respect to coarse centroid
-        std::vector<float> q_res(dim_);
         for (std::size_t d = 0; d < dim_; ++d) {
             q_res[d] = q[d] - c_center[d];
         }
 
-        // Asymmetric Distance Computation (ADC) Lookup Table
-        // lut[s][j] = || q_res[s] - sub_centroid[s][j] ||^2
-        std::vector<std::vector<float>> lut(m_);
+        // Asymmetric Distance Computation (ADC) lookup table
         for (std::size_t s = 0; s < m_; ++s) {
-            const std::size_t k_sub = sub_centroids_[s].rows();
-            lut[s].resize(k_sub);
             const float* q_sub = q_res.data() + sub_offsets_[s];
-            for (std::size_t j = 0; j < k_sub; ++j) {
-                lut[s][j] = l2_squared(q_sub, sub_centroids_[s].row(j), sub_dims_[s]);
+            for (std::size_t j = 0; j < k_sub_; ++j) {
+                lut[s * k_sub_ + j] = l2_squared(q_sub, sub_centroids_[s].row(j), sub_dims_[s]);
             }
         }
 
-        // Scan inverted list and compute ADC distance
-        for (const auto& entry : inverted_lists_[c_id]) {
-            float dist = 0.0f;
-            for (std::size_t s = 0; s < m_; ++s) {
-                dist += lut[s][entry.code[s]];
+        // Scan inverted list and compute ADC distance (codes is the list's 8- or 16-bit array)
+        const InvertedList& list = inverted_lists_[c_id];
+        auto scan = [&](const auto& codes) {
+            for (std::size_t e = 0; e < list.ids.size(); ++e) {
+                const auto* code = codes.data() + e * m_;
+                float dist = 0.0f;
+                for (std::size_t s = 0; s < m_; ++s) {
+                    dist += lut[s * k_sub_ + code[s]];
+                }
+                if (params_.rerank) {
+                    dist = l2_squared(dataset_->row(list.ids[e]), q, dim_);
+                }
+                evaluated.push_back({list.ids[e], dist});
             }
-            if (params_.rerank) {
-                dist = l2_squared(dataset_->row(entry.id), q, dim_);
-            }
-            evaluated.push_back({entry.id, dist});
+        };
+        if (wide_codes_) {
+            scan(list.codes16);
+        } else {
+            scan(list.codes8);
         }
     }
 
