@@ -88,5 +88,20 @@ int main() {
         assert(!res128.empty());
         assert(res128[0] == 0); // exact match is index 0
     }
+    { // 16-bit codes: k_sub > 256 needs more than 256 points, otherwise it is clamped to n
+        constexpr std::size_t n = 400;
+        constexpr std::size_t dim = 4;
+        Matrix big(n, dim);
+        for (std::size_t i = 0; i < n * dim; ++i) {
+            big.raw()[i] = static_cast<float>((i * 7919) % 1009) * 0.001f;  // all 400 rows distinct
+        }
+        const float* bq = big.row(123);
+        IVFPQParams p{.k = 2, .m = 2, .k_sub = 300, .nprobe = 2, .max_iter = 10, .rerank = true, .seed = 3};
+        IVFPQIndex ivf(big, p);
+        auto res = ivf.query(bq, 10);
+        assert(res.size() == 10 && res[0] == 123);           // the point itself is found first
+        assert(IVFPQIndex(big, p).query(bq, 10) == res);     // deterministic
+    }
+
     return 0;
 }

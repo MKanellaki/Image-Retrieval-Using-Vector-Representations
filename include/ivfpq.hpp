@@ -28,27 +28,27 @@ public:
     std::size_t size() const;
 
 private:
-    struct PQEntry {
-        ImageIndex id;
-        std::vector<int> code; // m sub-vector codebook indices
+    // One coarse cluster. Entry e is ids[e]; its PQ code is the m_ sub-codes stored at
+    // codes[e * m_ .. e * m_ + m_). Only one of the two code arrays is used: 8-bit codes
+    // when the codebooks have at most 256 centers (nbits <= 8), 16-bit otherwise.
+    struct InvertedList {
+        std::vector<ImageIndex> ids;
+        std::vector<std::uint8_t> codes8;
+        std::vector<std::uint16_t> codes16;
     };
 
     const Matrix* dataset_ = nullptr;
     IVFPQParams params_;
     std::size_t dim_ = 0;
-    std::size_t m_ = 0;      // Effective number of sub-quantizers
+    std::size_t m_ = 0;       // Effective number of sub-quantizers
+    std::size_t k_sub_ = 0;   // Effective codebook size (same for every sub-space)
+    bool wide_codes_ = false; // true -> codes16, false -> codes8
 
     Matrix coarse_centroids_;                             // k coarse centroids in R^dim
     std::vector<Matrix> sub_centroids_;                   // m codebooks, each (k_sub x sub_dim)
     std::vector<std::size_t> sub_dims_;                   // Dimension of each sub-vector
     std::vector<std::size_t> sub_offsets_;                // Starting coordinate of each sub-vector
-    std::vector<std::vector<PQEntry>> inverted_lists_;    // Inverted lists for each coarse centroid
-
-    // Finds closest coarse centroid index
-    int find_closest_coarse_centroid(const float* p) const;
-
-    // Runs k-means on a set of sub-vectors
-    Matrix run_kmeans_sub(const std::vector<const float*>& points, std::size_t sub_dim, int k, std::uint32_t seed);
+    std::vector<InvertedList> inverted_lists_;            // Inverted lists for each coarse centroid
 
     // Builds coarse and product quantizers
     void build_index();
