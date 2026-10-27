@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <functional>
+#include "seed.hpp"
 #include "types.hpp"
 
 namespace image_search {
@@ -36,12 +37,9 @@ private:
 // Chooses up to S rows uniformly at random, without replacement (all rows if there are fewer than S)
 // Selected rows keep their original relative order
 // The result depends only on (descriptors, S, seed)
-// Use a different seed per image (e.g. derive_seed(global_seed, image_index)),
+// Use a different seed per image (e.g. derive_seed(global_seed, image_index), from seed.hpp),
 // otherwise images with equal descriptor counts get the same row positions.
 Matrix sample_descriptors(const Matrix& descriptors, std::size_t S, std::uint64_t seed);
-
-// Mixes a global seed with a per-item index into an independent-looking seed (splitmix64)
-std::uint64_t derive_seed(std::uint64_t seed, std::uint64_t index);
 
 // Extracts the descriptors of one image. A factory makes one per worker thread.
 using ExtractFn        = std::function<Matrix(const std::string& path)>;

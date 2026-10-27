@@ -18,6 +18,7 @@
 #include "bow.hpp"
 #include "bow_pipeline.hpp"
 #include "kmeans.hpp"
+#include "seed.hpp"
 
 using namespace image_search;
 namespace fs = std::filesystem;
