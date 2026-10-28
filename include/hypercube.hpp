@@ -19,7 +19,12 @@ public:
     HypercubeIndex() = default;
     HypercubeIndex(const Matrix& dataset, const HypercubeParams& params = {});
 
-    // Returns up to max_results nearest ImageIndex results, sorted best (closest) first
+    // Binding to a temporary would leave a dangling pointer, so it is rejected
+    // at compile time, with or without params.
+    HypercubeIndex(Matrix&&, const HypercubeParams& = {}) = delete;
+
+    // Returns up to max_results nearest ImageIndex results, sorted best (closest) first.
+    // Ties in distance are broken by ascending row index, so output is deterministic.
     std::vector<ImageIndex> query(const float* q, std::size_t max_results = 10) const;
 
     // Number of points in the index
@@ -31,7 +36,7 @@ private:
         float t = 0.0f;       // Random shift: t ~ U[0, w)
     };
 
-    const Matrix* dataset_ = nullptr;
+    const Matrix* dataset_ = nullptr;   // not owned; must outlive the index
     HypercubeParams params_;
     std::size_t dim_ = 0;
     std::vector<HashFunction> funcs_; // k projection functions

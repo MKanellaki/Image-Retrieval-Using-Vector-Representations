@@ -47,10 +47,13 @@ std::vector<ImageIndex> IVFFlatIndex::query(const float* q, std::size_t max_resu
         c_dists.push_back({static_cast<int>(c), d});
     }
 
-    // Sort centroids by distance to query
+    // Sort centroids by (distance, id), so equidistant centroids are probed in a fixed order
     std::sort(c_dists.begin(), c_dists.end(),
               [](const CentroidDist& a, const CentroidDist& b) {
-                  return a.dist < b.dist;
+                  if (a.dist != b.dist) {
+                      return a.dist < b.dist;
+                  }
+                  return a.id < b.id;
               });
 
     // Probe the top nprobe closest centroids
@@ -71,10 +74,14 @@ std::vector<ImageIndex> IVFFlatIndex::query(const float* q, std::size_t max_resu
         }
     }
 
-    // Sort candidates by ascending distance
+    // Sort candidates by (distance, id): the id tie-break makes the order independent
+    // of which inverted list each candidate came from
     std::sort(evaluated.begin(), evaluated.end(),
               [](const Candidate& a, const Candidate& b) {
-                  return a.dist < b.dist;
+                  if (a.dist != b.dist) {
+                      return a.dist < b.dist;
+                  }
+                  return a.id < b.id;
               });
 
     // Return top results up to max_results
