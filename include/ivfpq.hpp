@@ -21,7 +21,12 @@ public:
     IVFPQIndex() = default;
     IVFPQIndex(const Matrix& dataset, const IVFPQParams& params = {});
 
-    // Returns up to max_results nearest ImageIndex results, sorted best (closest) first
+    // Binding to a temporary would leave a dangling pointer, so it is rejected
+    // at compile time, with or without params.
+    IVFPQIndex(Matrix&&, const IVFPQParams& = {}) = delete;
+
+    // Returns up to max_results nearest ImageIndex results, sorted best (closest) first.
+    // Ties in distance are broken by ascending row index, so output is deterministic.
     std::vector<ImageIndex> query(const float* q, std::size_t max_results = 10) const;
 
     // Number of points in the index
@@ -37,7 +42,7 @@ private:
         std::vector<std::uint16_t> codes16;
     };
 
-    const Matrix* dataset_ = nullptr;
+    const Matrix* dataset_ = nullptr;   // not owned; must outlive the index
     IVFPQParams params_;
     std::size_t dim_ = 0;
     std::size_t m_ = 0;       // Effective number of sub-quantizers

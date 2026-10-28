@@ -19,7 +19,12 @@ public:
     LSHIndex() = default;
     LSHIndex(const Matrix& dataset, const LSHParams& params = {});
 
-    // Returns up to max_results nearest ImageIndex results, sorted best (closest) first
+    // Binding to a temporary would leave a dangling pointer, so it is rejected
+    // at compile time, with or without params.
+    LSHIndex(Matrix&&, const LSHParams& = {}) = delete;
+
+    // Returns up to max_results nearest ImageIndex results, sorted best (closest) first.
+    // Ties in distance are broken by ascending row index, so output is deterministic.
     std::vector<ImageIndex> query(const float* q, std::size_t max_results = 10) const;
 
     // Number of points in the index
@@ -37,7 +42,7 @@ private:
         std::unordered_map<std::uint64_t, std::vector<ImageIndex>> buckets;
     };
 
-    const Matrix* dataset_ = nullptr;
+    const Matrix* dataset_ = nullptr;   // not owned; must outlive the index
     LSHParams params_;
     std::size_t dim_ = 0;
     std::vector<HashTable> tables_; // L hash tables

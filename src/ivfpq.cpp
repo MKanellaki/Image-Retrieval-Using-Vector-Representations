@@ -122,10 +122,13 @@ std::vector<ImageIndex> IVFPQIndex::query(const float* q, std::size_t max_result
         c_dists.push_back({static_cast<int>(c), d});
     }
 
-    // Sort coarse centroids by distance to query
+    // Sort coarse centroids by (distance, id), so equidistant centroids are probed in a fixed order
     std::sort(c_dists.begin(), c_dists.end(),
               [](const CentroidDist& a, const CentroidDist& b) {
-                  return a.dist < b.dist;
+                  if (a.dist != b.dist) {
+                      return a.dist < b.dist;
+                  }
+                  return a.id < b.id;
               });
 
     // Probe the top nprobe coarse centroids

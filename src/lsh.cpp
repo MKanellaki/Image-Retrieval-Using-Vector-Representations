@@ -92,10 +92,14 @@ std::vector<ImageIndex> LSHIndex::query(const float* q, std::size_t max_results)
         evaluated.push_back({id, dist});
     }
 
-    // Sort candidates by ascending distance
+    // Sort candidates by (distance, id): the id tie-break makes the order independent
+    // of the hash-set iteration order the candidates were gathered in
     std::sort(evaluated.begin(), evaluated.end(),
               [](const Candidate& a, const Candidate& b) {
-                  return a.dist < b.dist;
+                  if (a.dist != b.dist) {
+                      return a.dist < b.dist;
+                  }
+                  return a.id < b.id;
               });
 
     // Return top results up to max_results
