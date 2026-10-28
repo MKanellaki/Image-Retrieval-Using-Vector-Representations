@@ -80,6 +80,13 @@ BowData load_bow_cache(const std::string& path, const CacheKey& expected);
 // what relevant_rows() needs. Throws if fewer than D MIRFlickr images were encoded.
 Matrix make_database(const BowData& data, Split which, std::size_t D, std::vector<ImageRef>* refs);
 
+// Puts the database rows in a seeded random order and moves `refs` with them, so row i
+// is still image (*refs)[i]. Run once after make_database, before any index is built:
+// a method that stops after a fixed number of candidates (Hypercube's M) would otherwise
+// always meet the relevant HPatches rows before every MIRFlickr distractor.
+// Same seed -> same order. Throws std::invalid_argument if refs has the wrong size.
+void shuffle_database(Matrix& db, std::vector<ImageRef>* refs, std::uint64_t seed);
+
 const EncodedImages& queries_for(const BowData& data, Split which);
 
 }  // namespace image_search

@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <numeric>
+#include <random>
 #include <stdexcept>
 
 #include "binary_io.hpp"
@@ -280,6 +282,31 @@ Matrix make_database(const BowData& data, Split which, std::size_t D, std::vecto
         for (std::size_t i = 0; i < D; ++i) refs->push_back({mir.ids[i], ""});
     }
     return db;
+}
+
+void shuffle_database(Matrix& db, std::vector<ImageRef>* refs, std::uint64_t seed) {
+    const std::size_t n = db.rows();
+    const std::size_t K = db.cols();
+    if (refs && refs->size() != n)
+        throw std::invalid_argument("shuffle_database: refs has " + std::to_string(refs->size()) +
+                                    " entries but the database has " + std::to_string(n) + " rows");
+
+    // New row i is old row perm[i]
+    std::vector<std::size_t> perm(n);
+    std::iota(perm.begin(), perm.end(), std::size_t{0});
+    std::mt19937_64 rng(seed);
+    std::shuffle(perm.begin(), perm.end(), rng);
+
+    Matrix out(n, K);
+    for (std::size_t i = 0; i < n; ++i) std::copy_n(db.row(perm[i]), K, out.row(i));
+    db = std::move(out);
+
+    if (refs) {
+        std::vector<ImageRef> shuffled;
+        shuffled.reserve(n);
+        for (std::size_t i = 0; i < n; ++i) shuffled.push_back(std::move((*refs)[perm[i]]));
+        *refs = std::move(shuffled);
+    }
 }
 
 }  // namespace image_search
