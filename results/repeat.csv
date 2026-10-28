@@ -1,0 +1,16 @@
+method,params,set,D,R@5,R@10,mAP@10,avg_ms,lt10,wall_s
+exact,"",validation,25000,0.7217,0.7652,0.7457,3.3117,0,0.2
+lsh,"-k 8 -L 20 -w 0.1",validation,25000,0.6000,0.6348,0.6071,0.4453,1,0.7
+hypercube,"-kproj 14 -w 0.1 -M 5000 -probes 1000",validation,25000,0.5391,0.5913,0.5612,1.3903,0,0.2
+ivfflat,"-kclusters 1000 -nprobe 20",validation,25000,0.7217,0.7478,0.7318,1.0415,0,54.3
+ivfpq,"-kclusters 1000 -nprobe 20 -M 128 -nbits 6",validation,25000,0.7130,0.7565,0.7349,0.9098,0,62.7
+exact,"",validation,25000,0.7217,0.7652,0.7457,3.4356,0,0.2
+lsh,"-k 8 -L 20 -w 0.1",validation,25000,0.6000,0.6348,0.6071,0.4810,1,0.6
+hypercube,"-kproj 14 -w 0.1 -M 5000 -probes 1000",validation,25000,0.5391,0.5913,0.5612,1.2882,0,0.2
+ivfflat,"-kclusters 1000 -nprobe 20",validation,25000,0.7217,0.7478,0.7318,1.0667,0,54.1
+ivfpq,"-kclusters 1000 -nprobe 20 -M 128 -nbits 6",validation,25000,0.7130,0.7565,0.7349,0.9250,0,62.8
+exact,"",validation,25000,0.7217,0.7652,0.7457,4.4301,0,0.2
+lsh,"-k 8 -L 20 -w 0.1",validation,25000,0.6000,0.6348,0.6071,0.6838,1,0.7
+hypercube,"-kproj 14 -w 0.1 -M 5000 -probes 1000",validation,25000,0.5391,0.5913,0.5612,1.3491,0,0.2
+ivfflat,"-kclusters 1000 -nprobe 20",validation,25000,0.7217,0.7478,0.7318,1.0058,0,53.6
+ivfpq,"-kclusters 1000 -nprobe 20 -M 128 -nbits 6",validation,25000,0.7130,0.7565,0.7349,0.9127,0,63.0
