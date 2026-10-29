@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="400" viewBox="0 0 760 400" font-family="Helvetica, Arial, sans-serif" role="img" aria-label="Average query time as the database grows">
+<rect width="760" height="400" fill="#fcfcfb"/>
+<text x="64" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Average query time as the database grows</text>
+<text x="64" y="42" font-size="12" fill="#52514e">Test set, ms per query (log scale), index construction not included</text>
+<circle cx="69.0" cy="58.0" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<text x="78" y="62" font-size="12" fill="#52514e">Exact</text>
+<rect x="129.5" y="53.5" width="9.0" height="9.0" rx="1" fill="#eb6834" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<text x="143.0" y="62" font-size="12" fill="#52514e">LSH</text>
+<path d="M185.8,52.5 L191.3,62.5 L180.3,62.5Z" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<text x="194.8" y="62" font-size="12" fill="#52514e">Hypercube</text>
+<path d="M277.2,52.5 L282.7,58.0 L277.2,63.5 L271.7,58.0Z" fill="#eda100" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<text x="286.20000000000005" y="62" font-size="12" fill="#52514e">IVFFlat</text>
+<path d="M350.9,53.5 L359.9,62.5 M359.9,53.5 L350.9,62.5" stroke="#e87ba4" stroke-width="2.5" stroke-linecap="round"/>
+<text x="364.40000000000003" y="62" font-size="12" fill="#52514e">IVFPQ</text>
+<line x1="64" x2="592" y1="348.0" y2="348.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="352.0" font-size="11" fill="#898781" text-anchor="end">0.02</text>
+<line x1="64" x2="592" y1="301.9" y2="301.9" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="305.9" font-size="11" fill="#898781" text-anchor="end">0.05</text>
+<line x1="64" x2="592" y1="267.0" y2="267.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="271.0" font-size="11" fill="#898781" text-anchor="end">0.1</text>
+<line x1="64" x2="592" y1="232.1" y2="232.1" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="236.1" font-size="11" fill="#898781" text-anchor="end">0.2</text>
+<line x1="64" x2="592" y1="185.9" y2="185.9" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="189.9" font-size="11" fill="#898781" text-anchor="end">0.5</text>
+<line x1="64" x2="592" y1="151.0" y2="151.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="155.0" font-size="11" fill="#898781" text-anchor="end">1</text>
+<line x1="64" x2="592" y1="116.1" y2="116.1" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="120.1" font-size="11" fill="#898781" text-anchor="end">2</text>
+<line x1="64" x2="592" y1="70.0" y2="70.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="74.0" font-size="11" fill="#898781" text-anchor="end">5</text>
+<line x1="64" x2="592" y1="348" y2="348" stroke="#c3c2b7" stroke-width="1"/>
+<text x="95.9" y="366" font-size="11" fill="#898781" text-anchor="middle">1,000</text>
+<text x="326.3" y="366" font-size="11" fill="#898781" text-anchor="middle">5,000</text>
+<text x="425.5" y="366" font-size="11" fill="#898781" text-anchor="middle">10,000</text>
+<text x="556.6" y="366" font-size="11" fill="#898781" text-anchor="middle">24,985</text>
+<text x="328.0" y="390" font-size="12" fill="#52514e" text-anchor="middle">MIRFlickr distractors D (log scale)</text>
+<polyline fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" points="95.9,245.3 326.3,168.6 425.5,136.9 556.6,87.7"/>
+<circle cx="95.9" cy="245.3" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<circle cx="326.3" cy="168.6" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<circle cx="425.5" cy="136.9" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<circle cx="556.6" cy="87.7" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<polyline fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" points="95.9,322.3 326.3,274.6 425.5,240.3 556.6,200.1"/>
+<rect x="91.4" y="317.8" width="9.0" height="9.0" rx="1" fill="#eb6834" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<rect x="321.8" y="270.1" width="9.0" height="9.0" rx="1" fill="#eb6834" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<rect x="421.0" y="235.8" width="9.0" height="9.0" rx="1" fill="#eb6834" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<rect x="552.1" y="195.6" width="9.0" height="9.0" rx="1" fill="#eb6834" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<polyline fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round" points="95.9,237.2 326.3,161.5 425.5,144.5 556.6,136.6"/>
+<path d="M95.9,231.7 L101.4,241.7 L90.4,241.7Z" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<path d="M326.3,156.0 L331.8,166.0 L320.8,166.0Z" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<path d="M425.5,139.0 L431.0,149.0 L420.0,149.0Z" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<path d="M556.6,131.1 L562.1,141.1 L551.1,141.1Z" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<polyline fill="none" stroke="#eda100" stroke-width="2" stroke-linejoin="round" points="95.9,237.1 326.3,206.1 425.5,178.6 556.6,151.4"/>
+<path d="M95.9,231.6 L101.4,237.1 L95.9,242.6 L90.4,237.1Z" fill="#eda100" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<path d="M326.3,200.6 L331.8,206.1 L326.3,211.6 L320.8,206.1Z" fill="#eda100" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<path d="M425.5,173.1 L431.0,178.6 L425.5,184.1 L420.0,178.6Z" fill="#eda100" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<path d="M556.6,145.9 L562.1,151.4 L556.6,156.9 L551.1,151.4Z" fill="#eda100" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<polyline fill="none" stroke="#e87ba4" stroke-width="2" stroke-linejoin="round" points="95.9,185.2 326.3,177.5 425.5,168.3 556.6,156.5"/>
+<path d="M91.4,180.7 L100.4,189.7 M100.4,180.7 L91.4,189.7" stroke="#e87ba4" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M321.8,173.0 L330.8,182.0 M330.8,173.0 L321.8,182.0" stroke="#e87ba4" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M421.0,163.8 L430.0,172.8 M430.0,163.8 L421.0,172.8" stroke="#e87ba4" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M552.1,152.0 L561.1,161.0 M561.1,152.0 L552.1,161.0" stroke="#e87ba4" stroke-width="2.5" stroke-linecap="round"/>
+<text x="602" y="91.7" font-size="11" fill="#52514e">Exact 3.52 ms</text>
+<text x="602" y="140.6" font-size="11" fill="#52514e">Hypercube 1.33 ms</text>
+<text x="602" y="155.4" font-size="11" fill="#52514e">IVFFlat 0.99 ms</text>
+<text x="602" y="169.4" font-size="11" fill="#52514e">IVFPQ 0.90 ms</text>
+<text x="602" y="204.1" font-size="11" fill="#52514e">LSH 0.38 ms</text>
+</svg>

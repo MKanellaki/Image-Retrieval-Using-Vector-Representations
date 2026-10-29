@@ -1,5 +1,6 @@
 // Tests for bow / bow_pipeline. They use a fake extractor instead of SIFT, so they need
 // neither OpenCV nor the real datasets. Run with `make test`.
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstdio>
@@ -329,6 +330,40 @@ static void test_cache_roundtrip(const fs::path& dir) {
     CHECK(make_database(d, Split::Validation, 0, nullptr).rows() == 10);
     CHECK(throws<std::runtime_error>([&] { make_database(d, Split::Test, 8, nullptr); }));
     CHECK(throws<std::invalid_argument>([&] { make_database(d, Split::Train, 1, nullptr); }));
+
+    // shuffle_database: a seeded permutation that keeps every row with its id.
+    Matrix sh = db;
+    std::vector<ImageRef> sh_refs = db_refs;
+    shuffle_database(sh, &sh_refs, 3);
+    CHECK(sh.rows() == db.rows() && sh.cols() == K && sh_refs.size() == db_refs.size());
+    std::size_t moved = 0;
+    std::set<std::string> seen;
+    for (std::size_t i = 0; i < sh.rows(); ++i) {
+        std::size_t j = 0;
+        while (j < db_refs.size() && db_refs[j].id != sh_refs[i].id) ++j;
+        CHECK(j < db_refs.size() && std::equal(db.row(j), db.row(j) + K, sh.row(i)));
+        seen.insert(sh_refs[i].id);
+        if (j != i) ++moved;
+    }
+    CHECK(seen.size() == db_refs.size());   // a permutation: nothing lost or duplicated
+    CHECK(moved > 0);
+
+    Matrix again = db;                      // same seed, same order
+    std::vector<ImageRef> again_refs = db_refs;
+    shuffle_database(again, &again_refs, 3);
+    CHECK(same(again, sh));
+    for (std::size_t i = 0; i < again_refs.size(); ++i) CHECK(again_refs[i].id == sh_refs[i].id);
+
+    Matrix other = db;                      // a different seed gives a different order
+    shuffle_database(other, nullptr, 4);
+    CHECK(!same(other, sh));
+
+    std::vector<ImageRef> bad_refs(2);
+    CHECK(throws<std::invalid_argument>([&] { shuffle_database(again, &bad_refs, 3); }));
+    Matrix empty(0, K);
+    std::vector<ImageRef> no_refs;
+    shuffle_database(empty, &no_refs, 3);
+    CHECK(empty.rows() == 0 && no_refs.empty());
 }
 
 // End to end on a tiny fake dataset on disk: build, cache hit, cache key changes.
@@ -388,6 +423,19 @@ static void test_pipeline(const fs::path& dir) {
     CHECK(db.rows() == 13);
     const auto rel = relevant_rows(db_refs, "v_d");
     CHECK(rel == (std::unordered_set<ImageIndex>{5, 6, 7, 8, 9}));
+
+    // After the shuffle main does, relevant_rows still finds the same five images.
+    Matrix sh = db;
+    std::vector<ImageRef> sh_refs = db_refs;
+    shuffle_database(sh, &sh_refs, cfg.seed);
+    const auto sh_rel = relevant_rows(sh_refs, "v_d");
+    CHECK(sh_rel.size() == 5);
+    for (ImageIndex row : sh_rel) {
+        CHECK(sh_refs[row].id.rfind("v_d/", 0) == 0);
+        std::size_t j = 0;
+        while (j < db_refs.size() && db_refs[j].id != sh_refs[row].id) ++j;
+        CHECK(j < db_refs.size() && std::equal(db.row(j), db.row(j) + db.cols(), sh.row(row)));
+    }
 
     // A different seed or split file gives a different cache file.
     BowConfig s2 = cfg;

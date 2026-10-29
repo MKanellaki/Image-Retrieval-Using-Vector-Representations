@@ -137,11 +137,15 @@ int run(const Args& args) {
         D = available;
     }
     std::vector<ImageRef> refs;
-    const Matrix db = make_database(data, args.query_set, D, &refs);
+    Matrix db = make_database(data, args.query_set, D, &refs);
+    // Seeded row shuffle (refs move with the rows), so the relevant HPatches images are
+    // spread among the distractors instead of all sitting in rows 0..114. Without it,
+    // any method that stops after a fixed number of candidates sees them first.
+    shuffle_database(db, &refs, args.seed);
     const EncodedImages& queries = queries_for(data, args.query_set);
     if(queries.vectors.cols() != db.cols())
         throw std::runtime_error("query vectors and database vectors have different dimensions");
-    std::fprintf(stderr, "[search] database: %zu rows (%zu HPatches + %zu MIRFlickr), %zu queries\n", db.rows(), db.rows() - D, D, queries.ids.size());
+    std::fprintf(stderr, "[search] database: %zu rows (%zu HPatches + %zu MIRFlickr, shuffled with seed %llu), %zu queries\n", db.rows(), db.rows() - D, D, static_cast<unsigned long long>(args.seed), queries.ids.size());
 
     // 3. Index (build time is reported but is not part of the query time)
     const auto build_start = Clock::now();

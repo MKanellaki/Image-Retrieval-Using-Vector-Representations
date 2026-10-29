@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="400" viewBox="0 0 760 400" font-family="Helvetica, Arial, sans-serif" role="img" aria-label="mAP@10 as the database grows">
+<rect width="760" height="400" fill="#fcfcfb"/>
+<text x="64" y="24" font-size="15" font-weight="600" fill="#0b0b0b">mAP@10 as the database grows</text>
+<text x="64" y="42" font-size="12" fill="#52514e">Test set, 23 queries, chosen parameters fixed for every D</text>
+<circle cx="69.0" cy="58.0" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<text x="78" y="62" font-size="12" fill="#52514e">Exact</text>
+<rect x="129.5" y="53.5" width="9.0" height="9.0" rx="1" fill="#eb6834" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<text x="143.0" y="62" font-size="12" fill="#52514e">LSH</text>
+<path d="M185.8,52.5 L191.3,62.5 L180.3,62.5Z" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<text x="194.8" y="62" font-size="12" fill="#52514e">Hypercube</text>
+<path d="M277.2,52.5 L282.7,58.0 L277.2,63.5 L271.7,58.0Z" fill="#eda100" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<text x="286.20000000000005" y="62" font-size="12" fill="#52514e">IVFFlat</text>
+<path d="M350.9,53.5 L359.9,62.5 M359.9,53.5 L350.9,62.5" stroke="#e87ba4" stroke-width="2.5" stroke-linecap="round"/>
+<text x="364.40000000000003" y="62" font-size="12" fill="#52514e">IVFPQ</text>
+<line x1="64" x2="592" y1="348.0" y2="348.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="352.0" font-size="11" fill="#898781" text-anchor="end">0.45</text>
+<line x1="64" x2="592" y1="308.3" y2="308.3" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="312.3" font-size="11" fill="#898781" text-anchor="end">0.50</text>
+<line x1="64" x2="592" y1="268.6" y2="268.6" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="272.6" font-size="11" fill="#898781" text-anchor="end">0.55</text>
+<line x1="64" x2="592" y1="228.9" y2="228.9" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="232.9" font-size="11" fill="#898781" text-anchor="end">0.60</text>
+<line x1="64" x2="592" y1="189.1" y2="189.1" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="193.1" font-size="11" fill="#898781" text-anchor="end">0.65</text>
+<line x1="64" x2="592" y1="149.4" y2="149.4" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="153.4" font-size="11" fill="#898781" text-anchor="end">0.70</text>
+<line x1="64" x2="592" y1="109.7" y2="109.7" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="113.7" font-size="11" fill="#898781" text-anchor="end">0.75</text>
+<line x1="64" x2="592" y1="70.0" y2="70.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="56" y="74.0" font-size="11" fill="#898781" text-anchor="end">0.80</text>
+<line x1="64" x2="592" y1="348" y2="348" stroke="#c3c2b7" stroke-width="1"/>
+<text x="95.9" y="366" font-size="11" fill="#898781" text-anchor="middle">1,000</text>
+<text x="326.3" y="366" font-size="11" fill="#898781" text-anchor="middle">5,000</text>
+<text x="425.5" y="366" font-size="11" fill="#898781" text-anchor="middle">10,000</text>
+<text x="556.6" y="366" font-size="11" fill="#898781" text-anchor="middle">24,985</text>
+<text x="328.0" y="390" font-size="12" fill="#52514e" text-anchor="middle">MIRFlickr distractors D (log scale)</text>
+<polyline fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" points="95.9,103.3 326.3,129.3 425.5,133.8 556.6,150.7"/>
+<circle cx="95.9" cy="103.3" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<circle cx="326.3" cy="129.3" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<circle cx="425.5" cy="133.8" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<circle cx="556.6" cy="150.7" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<polyline fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" points="95.9,244.7 326.3,254.0 425.5,254.5 556.6,258.1"/>
+<rect x="91.4" y="240.2" width="9.0" height="9.0" rx="1" fill="#eb6834" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<rect x="321.8" y="249.5" width="9.0" height="9.0" rx="1" fill="#eb6834" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<rect x="421.0" y="250.0" width="9.0" height="9.0" rx="1" fill="#eb6834" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<rect x="552.1" y="253.6" width="9.0" height="9.0" rx="1" fill="#eb6834" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<polyline fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round" points="95.9,123.5 326.3,145.8 425.5,188.1 556.6,306.1"/>
+<path d="M95.9,118.0 L101.4,128.0 L90.4,128.0Z" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<path d="M326.3,140.3 L331.8,150.3 L320.8,150.3Z" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<path d="M425.5,182.6 L431.0,192.6 L420.0,192.6Z" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<path d="M556.6,300.6 L562.1,310.6 L551.1,310.6Z" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<polyline fill="none" stroke="#eda100" stroke-width="2" stroke-linejoin="round" points="95.9,103.3 326.3,136.2 425.5,131.0 556.6,150.7"/>
+<path d="M95.9,97.8 L101.4,103.3 L95.9,108.8 L90.4,103.3Z" fill="#eda100" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<path d="M326.3,130.7 L331.8,136.2 L326.3,141.7 L320.8,136.2Z" fill="#eda100" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<path d="M425.5,125.5 L431.0,131.0 L425.5,136.5 L420.0,131.0Z" fill="#eda100" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<path d="M556.6,145.2 L562.1,150.7 L556.6,156.2 L551.1,150.7Z" fill="#eda100" stroke="#fcfcfb" stroke-width="2" paint-order="stroke"/>
+<polyline fill="none" stroke="#e87ba4" stroke-width="2" stroke-linejoin="round" points="95.9,103.1 326.3,138.0 425.5,137.2 556.6,150.7"/>
+<path d="M91.4,98.6 L100.4,107.6 M100.4,98.6 L91.4,107.6" stroke="#e87ba4" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M321.8,133.5 L330.8,142.5 M330.8,133.5 L321.8,142.5" stroke="#e87ba4" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M421.0,132.7 L430.0,141.7 M430.0,132.7 L421.0,141.7" stroke="#e87ba4" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M552.1,146.2 L561.1,155.2 M561.1,146.2 L552.1,155.2" stroke="#e87ba4" stroke-width="2.5" stroke-linecap="round"/>
+<text x="602" y="154.7" font-size="11" fill="#52514e">Exact, IVFFlat, IVFPQ 0.698</text>
+<text x="602" y="262.1" font-size="11" fill="#52514e">LSH 0.563</text>
+<text x="602" y="310.1" font-size="11" fill="#52514e">Hypercube 0.503</text>
+</svg>
