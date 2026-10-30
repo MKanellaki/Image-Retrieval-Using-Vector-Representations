@@ -1,0 +1,6 @@
+method,params,set,D,R@5,R@10,mAP@10,avg_ms,lt10,wall_s
+exact,"-vocab 512 -S 500",validation,25000,0.7478,0.7652,0.7394,11.5777,0,889.2
+exact,"-vocab 128 -S 500",validation,25000,0.6957,0.7391,0.7117,2.3628,0,511.3
+exact,"-vocab 256 -S 500",validation,25000,0.7217,0.7652,0.7457,4.9399,0,0.3
+exact,"-vocab 256 -S 200",validation,25000,0.7304,0.7478,0.7297,6.0360,0,551.6
+exact,"-vocab 256 -S 1000",validation,25000,0.7217,0.7478,0.7331,4.9661,0,734.7

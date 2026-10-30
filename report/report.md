@@ -48,8 +48,9 @@ possible value is therefore **D = 24,985**, a database of 25,100 images, and tha
 "D = 25,000" experiments use.
 
 The vectors depend only on (K, S, seed, split file), so they are computed once and stored in a cache
-file. Every run of the study loads that file. K and S were kept at the values above and were not tuned:
-a different K or S means running SIFT on all 25,000 images again, which takes hours (Section 8).
+file. Every run of the study loads that file. A different K or S means running SIFT on all 25,000 images
+again, which takes 8–15 minutes on our machine. K and S were chosen first, with exact search only
+(Section 5.1), and the four approximate methods were then tuned on the chosen vectors.
 
 ## 3. Methods
 
@@ -80,7 +81,7 @@ in detail.
   24,985} (`results/test.csv`). They were not changed after the test results were seen.
 * **Setup:** Intel Core i7-14700HX, 16 GB RAM, Ubuntu 24.04, g++ 13.3 with `-O2`, OpenCV 4.6.
   Queries run on one thread, and the seed is 1 for everything.
-* **Database order:** the database rows are shuffled with the seed before any index is built (Section 5.2).
+* **Database order:** the database rows are shuffled with the seed before any index is built (Section 5.3).
 
 ## 5. Parameter tuning (validation, D = 24,985)
 
@@ -88,7 +89,33 @@ Exact search gives mAP@10 = **0.746** on validation, which is the reference for 
 methods. Its time varied between runs (3.3–5.3 ms), so each table below is read against the exact-search
 time measured in the same session.
 
-### 5.1 LSH
+### 5.1 Vocabulary size K and descriptor sample S (exact search)
+
+K and S change the vectors themselves, so they were chosen first, with exact search only: its mAP is
+the best any method can reach on a given set of vectors. One factor was varied at a time, starting
+from K = 256, S = 500 (`results/tune_vocab.csv`).
+
+| K | S | mAP@10 | R@10 | ms / query | vector build |
+|---|---|---|---|---|---|
+| 128 | 500 | 0.712 | 0.739 | 2.36 | 8.5 min |
+| **256** | **500** | **0.746** | **0.765** | **4.94** | – (cached) |
+| 512 | 500 | 0.739 | 0.765 | 11.58 | 14.8 min |
+| 256 | 200 | 0.730 | 0.748 | 6.04* | 9.2 min |
+| 256 | 1000 | 0.733 | 0.748 | 4.97 | 12.2 min |
+
+\* S does not change the vector length, so the query time cannot depend on it; this run was slowed by
+machine load.
+
+* **K = 128 is too coarse.** With half as many visual words, different images get more similar
+  histograms, and mAP falls by 0.034.
+* **K = 512 adds nothing:** 0.007 below K = 256, which is one image moving one rank with 23 queries.
+  Every distance costs twice as many coordinates, so queries are 2.3× slower, for every method.
+* **S = 500 is the best of the three samples,** although the differences (0.013–0.016) are within the
+  noise. Even S = 200 gives the k-means up to 84,000 descriptors for 256 centres, so the vocabulary is
+  not short of training data at any of these values; S mainly changes the build time.
+* **Chosen: K = 256, S = 500.** Everything below uses these vectors.
+
+### 5.2 LSH
 
 Grid: `k` ∈ {2, 4, 6, 8}, `L` ∈ {5, 10, 15, 20}, `w` ∈ {0.05, 0.1, 0.2, 0.3} (64 settings). The table
 lists the settings with the highest mAP for their query time (exact search: about 5 ms in this session).
@@ -114,7 +141,7 @@ lists the settings with the highest mAP for their query time (exact search: abou
   the grid (0.43, 0.48, 0.59, 0.61 for L = 5–20), so more tables would probably raise it further, at a
   higher query time and memory cost.
 
-### 5.2 Hypercube, and the database-order effect
+### 5.3 Hypercube, and the database-order effect
 
 The first Hypercube grid appeared to *beat* exact search. For example, `kproj = 6, w = 0.2, M = 200,
 probes = 5` gave mAP@10 = 0.775 with R@10 = 0.826 (exact search: 0.746 and 0.765) in only 0.06 ms,
@@ -157,7 +184,7 @@ took about 5.3 ms in this session.
   than exact search.
 * **Chosen: `kproj = 14, w = 0.1, M = 5000, probes = 1000`**, 75 % of exact-search mAP at 2.5× its speed.
 
-### 5.3 IVFFlat
+### 5.4 IVFFlat
 
 Grid: `kclusters` ∈ {50, 100, 159 (= ⌈√n⌉, the default), 300, 500, 750, 1000}, `nprobe` ∈ {1, …, 40}.
 Exact search took about 5.2 ms in this session.
@@ -178,7 +205,7 @@ Exact search took about 5.2 ms in this session.
   exactly, which we used as a correctness check of the implementation.
 * **Chosen: `kclusters = 1000, nprobe = 20`.**
 
-### 5.4 IVFPQ
+### 5.5 IVFPQ
 
 The coarse quantizer was fixed to the chosen IVFFlat setting (`kclusters = 1000, nprobe = 20`). The grid
 was `M` ∈ {8, 16, 32, 64} × `nbits` ∈ {6, 8, 10}, followed by three runs beyond its edges: `M = 128,
@@ -202,7 +229,7 @@ nbits = 6`, `M = 64, nbits = 4`, and `nprobe = 10` with `M = 64, nbits = 6` (0.6
   without error, so the ranking is practically the exact one.
 * **Chosen: `M = 128, nbits = 6`**, 8× smaller vectors than IVFFlat, with the same mAP.
 
-### 5.5 Repeated timing of the chosen settings (validation)
+### 5.6 Repeated timing of the chosen settings (validation)
 
 The chosen settings were run three times, one method after the other. mAP was identical in all three runs.
 
@@ -258,18 +285,68 @@ overlap almost everywhere.*
 *Figure 2. Average query time on the test set against the number of distractors. Both axes are
 logarithmic.*
 
-### 6.2 Illumination and viewpoint sequences (mAP@10)
+### 6.2 Illumination and viewpoint sequences
 
-| D | Category | Exact | LSH | Hypercube | IVFFlat | IVFPQ |
+The same runs as Section 6.1, split by sequence type. The numbers come from the per-category summaries
+in the stderr logs (`results/runs/*_test_D*.log`).
+
+**Illumination sequences (11 queries)**
+
+| D | Method | R@5 | R@10 | mAP@10 | ms | < 10 results |
 |---|---|---|---|---|---|---|
-| 1,000 | illumination (11) | 0.722 | 0.487 | 0.691 | 0.722 | 0.722 |
-| | viewpoint (12) | 0.792 | 0.666 | 0.771 | 0.792 | 0.792 |
-| 5,000 | illumination | 0.702 | 0.487 | 0.675 | 0.684 | 0.678 |
-| | viewpoint | 0.747 | 0.643 | 0.732 | 0.747 | 0.748 |
-| 10,000 | illumination | 0.691 | 0.487 | 0.587 | 0.699 | 0.684 |
-| | viewpoint | 0.746 | 0.642 | 0.711 | 0.746 | 0.744 |
-| 24,985 | illumination | 0.675 | 0.487 | 0.461 | 0.675 | 0.678 |
-| | viewpoint | 0.720 | 0.633 | 0.541 | 0.720 | 0.717 |
+| 1,000 | Exact | 0.727 | 0.764 | 0.722 | 0.15 | 0 |
+| | LSH | 0.491 | 0.509 | 0.487 | 0.03 | 2 |
+| | Hypercube | 0.691 | 0.727 | 0.691 | 0.18 | 0 |
+| | IVFFlat | 0.727 | 0.764 | 0.722 | 0.18 | 0 |
+| | IVFPQ | 0.709 | 0.764 | 0.722 | 0.51 | 0 |
+| 5,000 | Exact | 0.709 | 0.764 | 0.702 | 0.71 | 0 |
+| | LSH | 0.491 | 0.509 | 0.487 | 0.08 | 0 |
+| | Hypercube | 0.673 | 0.727 | 0.675 | 0.81 | 0 |
+| | IVFFlat | 0.691 | 0.746 | 0.684 | 0.35 | 0 |
+| | IVFPQ | 0.691 | 0.746 | 0.678 | 0.60 | 0 |
+| 10,000 | Exact | 0.691 | 0.746 | 0.691 | 1.33 | 0 |
+| | LSH | 0.491 | 0.509 | 0.487 | 0.17 | 0 |
+| | Hypercube | 0.582 | 0.618 | 0.587 | 1.14 | 0 |
+| | IVFFlat | 0.691 | 0.764 | 0.699 | 0.63 | 0 |
+| | IVFPQ | 0.691 | 0.727 | 0.684 | 0.72 | 0 |
+| 24,985 | Exact | 0.673 | 0.709 | 0.675 | 3.56 | 0 |
+| | LSH | 0.491 | 0.509 | 0.487 | 0.37 | 0 |
+| | Hypercube | 0.473 | 0.473 | 0.461 | 1.37 | 0 |
+| | IVFFlat | 0.673 | 0.709 | 0.675 | 1.10 | 0 |
+| | IVFPQ | 0.691 | 0.709 | 0.678 | 0.93 | 0 |
+
+**Viewpoint sequences (12 queries)**
+
+| D | Method | R@5 | R@10 | mAP@10 | ms | < 10 results |
+|---|---|---|---|---|---|---|
+| 1,000 | Exact | 0.750 | 0.867 | 0.792 | 0.15 | 0 |
+| | LSH | 0.633 | 0.700 | 0.666 | 0.03 | 2 |
+| | Hypercube | 0.733 | 0.833 | 0.770 | 0.18 | 0 |
+| | IVFFlat | 0.750 | 0.867 | 0.792 | 0.18 | 0 |
+| | IVFPQ | 0.750 | 0.867 | 0.792 | 0.51 | 0 |
+| 5,000 | Exact | 0.717 | 0.800 | 0.747 | 0.70 | 0 |
+| | LSH | 0.633 | 0.683 | 0.643 | 0.09 | 2 |
+| | Hypercube | 0.717 | 0.783 | 0.732 | 0.81 | 0 |
+| | IVFFlat | 0.717 | 0.800 | 0.747 | 0.32 | 0 |
+| | IVFPQ | 0.717 | 0.800 | 0.748 | 0.58 | 0 |
+| 10,000 | Exact | 0.717 | 0.800 | 0.746 | 1.32 | 0 |
+| | LSH | 0.617 | 0.683 | 0.642 | 0.17 | 1 |
+| | Hypercube | 0.683 | 0.767 | 0.711 | 1.14 | 0 |
+| | IVFFlat | 0.717 | 0.800 | 0.746 | 0.53 | 0 |
+| | IVFPQ | 0.700 | 0.800 | 0.744 | 0.70 | 0 |
+| 24,985 | Exact | 0.683 | 0.783 | 0.720 | 3.48 | 0 |
+| | LSH | 0.617 | 0.667 | 0.633 | 0.38 | 0 |
+| | Hypercube | 0.533 | 0.567 | 0.541 | 1.30 | 0 |
+| | IVFFlat | 0.683 | 0.783 | 0.720 | 0.90 | 0 |
+| | IVFPQ | 0.683 | 0.767 | 0.717 | 0.87 | 0 |
+
+* **Every query that got fewer than 10 results came from LSH** (4 at D = 1,000, 2 at 5,000, 1 at 10,000),
+  split between the two categories. Such queries disappear as D grows, because the buckets fill up.
+* **The query time hardly depends on the category.** For every method and D, the average times of the two
+  categories differ by at most 0.2 ms; only the quality differs.
+* **LSH gives exactly the same illumination results at every D** (R@10 0.509, mAP@10 0.487): the relevant
+  images it finds are always ranked first, and the ones it misses never share a bucket with the query
+  (Section 7).
 
 ### 6.3 Index construction time (not part of the query time)
 
@@ -328,7 +405,7 @@ buckets.
 
 **Database order.** Any method that stops after a fixed number of candidates is sensitive to the order
 in which the database is stored. With the relevant images stored first, the Hypercube appeared to beat
-exact search (Section 5.2). A seeded shuffle of the database removes the effect without affecting the
+exact search (Section 5.3). A seeded shuffle of the database removes the effect without affecting the
 other methods, and shuffling is the realistic assumption, since a real database has no reason to store
 the answers first.
 
@@ -336,13 +413,15 @@ the answers first.
 
 * **Only 23 queries per set.** A difference of 0.01–0.02 mAP is one relevant image moving one or two
   ranks. Differences of that size (e.g. IVFFlat against IVFPQ) should be read as equal.
-* **K = 256 and S = 500 were not tuned.** Each different value requires extracting SIFT from all
-  25,000 images again, which did not fit in the available time. A larger vocabulary would change the
-  vectors and thus the ceiling set by exact search for every method.
+* **K and S were compared with exact search only, and on a small grid** (K ∈ {128, 256, 512},
+  S ∈ {200, 500, 1000}, one factor at a time). The approximate methods were tuned only on the chosen
+  vectors (K = 256, S = 500), so we do not know whether one of them would do relatively better on another
+  vocabulary. The differences between the three values of S (0.013–0.016 mAP) are within the noise of 23
+  queries.
 * **The parameters were tuned once, at D = 24,985,** and used unchanged for every D. This is the
   protocol the assignment asks for, but it is not the best setting for small databases (Section 7).
 * **Times depend on machine load.** Exact search varied between 3.3 and 5.3 ms across sessions. The
-  comparisons in Section 5.5 come from runs made back to back, and the test numbers come from one run
+  comparisons in Section 5.6 come from runs made back to back, and the test numbers come from one run
   per setting.
 * **One seed.** All results use seed 1. The random projections (LSH, Hypercube) and the k-means
   initializations would give slightly different numbers with another seed.
