@@ -1,6 +1,8 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
+#include <optional>
 
 namespace image_search {
 
@@ -38,6 +40,57 @@ struct Normalization {
 
     Point2D transform(const Point2D& p) const;
     Point2D inverse_transform(const Point2D& p) const;
+};
+
+// 3x3 Projective Homography matrix (double precision, row-major storage).
+class Homography {
+public:
+    // Elements:
+    // [0] [1] [2]
+    // [3] [4] [5]
+    // [6] [7] [8]
+    std::array<double, 9> m = {1.0, 0.0, 0.0,
+                               0.0, 1.0, 0.0,
+                               0.0, 0.0, 1.0};
+
+    Homography() = default;
+    explicit Homography(const std::array<double, 9>& elements);
+    Homography(double m00, double m01, double m02,
+               double m10, double m11, double m12,
+               double m20, double m21, double m22);
+
+    double operator()(std::size_t r, std::size_t c) const;
+    double& operator()(std::size_t r, std::size_t c);
+
+    static Homography identity();
+
+    // Verify all 9 elements are finite (not NaN, not Inf).
+    bool is_finite() const;
+
+    // Matrix determinant.
+    double determinant() const;
+
+    // Frobenius norm: sqrt(sum(m_ij^2)).
+    double frobenius_norm() const;
+
+    // Numerical invertibility check (finite, non-zero determinant, bounded condition number).
+    bool is_invertible(double det_tol = 1e-12, double max_cond = 1e10) const;
+
+    // Analytical 3x3 matrix inverse. Returns std::nullopt if not invertible.
+    std::optional<Homography> inverse(double det_tol = 1e-12) const;
+
+    // Normalizes scale so that m[8] == 1.0 (if |m[8]| > 1e-12) or Frobenius norm == 1.0.
+    void normalize_scale();
+
+    // Project point p = (x, y) via projective transformation:
+    // (a, b, c)^T = H * (x, y, 1)^T
+    // Returns (a/c, b/c) if c != 0 (|c| >= denom_tol) and finite.
+    // Returns std::nullopt if denominator check fails.
+    std::optional<Point2D> project(const Point2D& p, double denom_tol = 1e-12) const;
+
+    // Reprojection error ||p2 - H(p1)||_2 in pixels.
+    // Returns infinity if denominator check fails or projection is not finite.
+    double reprojection_error(const Point2D& p1, const Point2D& p2, double denom_tol = 1e-12) const;
 };
 
 }  // namespace image_search
