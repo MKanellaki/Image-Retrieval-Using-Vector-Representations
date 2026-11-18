@@ -14,8 +14,15 @@ MODE     ?= -O2
 
 OPENCV_CFLAGS := $(shell pkg-config --cflags opencv4 2>/dev/null | sed 's/-I/-isystem /g')
 OPENCV_LIBS   := $(shell pkg-config --libs opencv4 2>/dev/null)
+EIGEN_CFLAGS  := $(shell pkg-config --cflags eigen3 2>/dev/null | sed 's/-I/-isystem /g')
 
-CXXFLAGS = -std=c++20 -Wall -Wextra -Wpedantic $(MODE) -Iinclude $(OPENCV_CFLAGS) -MMD -MP
+# Fallback include paths for 3rdparty headers and system eigen3
+FALLBACK_CFLAGS := $(shell [ -d 3rdparty/include ] && echo "-isystem 3rdparty/include")
+ifneq ($(wildcard /usr/include/eigen3),)
+    FALLBACK_CFLAGS += -isystem /usr/include/eigen3
+endif
+
+CXXFLAGS = -std=c++20 -Wall -Wextra -Wpedantic $(MODE) -Iinclude $(FALLBACK_CFLAGS) $(EIGEN_CFLAGS) $(OPENCV_CFLAGS) -MMD -MP
 LDLIBS   = $(OPENCV_LIBS)
 
 SRCS      := $(wildcard src/*.cpp)
@@ -24,7 +31,7 @@ LIB_OBJS  := $(filter-out $(BUILD)/main.o,$(OBJS))
 TESTS     := $(wildcard tests/test_*.cpp)
 TEST_BINS := $(patsubst tests/%.cpp,$(BUILD)/tests/%,$(TESTS))
 
-SANITIZE  := -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer
+SANITIZE  ?= -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer
 
 .PHONY: all test run-tests debug clean
 
