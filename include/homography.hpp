@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <optional>
+#include <vector>
 
 namespace image_search {
 
@@ -92,5 +93,26 @@ public:
     // Returns infinity if denominator check fails or projection is not finite.
     double reprojection_error(const Point2D& p1, const Point2D& p2, double denom_tol = 1e-12) const;
 };
+
+// =========================================================================
+// Geometric and Degeneracy Checks
+// =========================================================================
+
+// 1. Check for duplicate points in a set of points (pairwise distance < tol).
+bool has_duplicate_points(const std::vector<Point2D>& pts, double tol = 1e-6);
+
+// 2. Check for collinear triplets among points (all combinations of 3 points).
+//    Uses perpendicular distance from the 3rd point to the line connecting the two furthest points.
+bool has_collinear_triplet(const std::vector<Point2D>& pts, double tol = 1e-4);
+
+// 3. Check if 4 correspondences form a degenerate or nearly degenerate quad:
+//    - Duplicate points in pts1 or pts2
+//    - Collinear triplets in pts1 or pts2
+//    - Directed line / orientation consistency check (cheirality / convexity preservation)
+//    - Minimum quad area check (shoelace area >= min_area)
+bool is_degenerate_quad(const std::vector<Point2D>& pts1,
+                        const std::vector<Point2D>& pts2,
+                        double collinear_tol = 1e-4,
+                        double min_area = 1.0);
 
 }  // namespace image_search

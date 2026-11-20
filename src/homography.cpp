@@ -1,7 +1,9 @@
 #include "homography.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
+#include <vector>
 
 #include <Eigen/Dense>
 #include <Eigen/SVD>
@@ -191,6 +193,140 @@ double Homography::reprojection_error(const Point2D& p1, const Point2D& p2, doub
         return std::numeric_limits<double>::infinity();
     }
     return proj->distance_to(p2);
+}
+
+// =========================================================================
+// Geometric and Degeneracy Checks
+// =========================================================================
+
+bool has_duplicate_points(const std::vector<Point2D>& pts, double tol) {
+    const std::size_t n = pts.size();
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = i + 1; j < n; ++j) {
+            if (pts[i].distance_to(pts[j]) < tol) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool has_collinear_triplet(const std::vector<Point2D>& pts, double tol) {
+    const std::size_t n = pts.size();
+    if (n < 3) {
+        return false;
+    }
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = i + 1; j < n; ++j) {
+            for (std::size_t k = j + 1; k < n; ++k) {
+                const Point2D& a = pts[i];
+                const Point2D& b = pts[j];
+                const Point2D& c = pts[k];
+
+                double area2 = std::abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
+                double d_ab = a.distance_to(b);
+                double d_ac = a.distance_to(c);
+                double d_bc = b.distance_to(c);
+                double max_edge = std::max({d_ab, d_ac, d_bc});
+
+                if (max_edge < 1e-12) {
+                    return true;
+                }
+                double perp_dist = area2 / max_edge;
+                if (perp_dist < tol) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool is_degenerate_quad(const std::vector<Point2D>& pts1,
+                        const std::vector<Point2D>& pts2,
+                        double collinear_tol,
+                        double min_area) {
+    if (pts1.size() != 4 || pts2.size() != 4) {
+        return true;
+    }
+
+    // 1. Check duplicate points in either image
+    if (has_duplicate_points(pts1) || has_duplicate_points(pts2)) {
+        return true;
+    }
+
+    // 2. Check collinear triplets in either image
+    if (has_collinear_triplet(pts1, collinear_tol) || has_collinear_triplet(pts2, collinear_tol)) {
+        return true;
+    }
+
+    // 3. Check for concave quadrilateral (one point inside the triangle of the other three)
+    auto point_in_triangle = [](const Point2D& p, const Point2D& a, const Point2D& b, const Point2D& c) {
+        auto cross = [](const Point2D& p1, const Point2D& p2, const Point2D& p3) {
+            return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
+        };
+        double d1 = cross(p, a, b);
+        double d2 = cross(p, b, c);
+        double d3 = cross(p, c, a);
+        bool has_neg = (d1 < -1e-9) || (d2 < -1e-9) || (d3 < -1e-9);
+        bool has_pos = (d1 > 1e-9) || (d2 > 1e-9) || (d3 > 1e-9);
+        return !(has_neg && has_pos);
+    };
+
+    if (point_in_triangle(pts1[3], pts1[0], pts1[1], pts1[2]) ||
+        point_in_triangle(pts1[2], pts1[0], pts1[1], pts1[3]) ||
+        point_in_triangle(pts1[1], pts1[0], pts1[2], pts1[3]) ||
+        point_in_triangle(pts1[0], pts1[1], pts1[2], pts1[3])) {
+        return true;
+    }
+
+    if (point_in_triangle(pts2[3], pts2[0], pts2[1], pts2[2]) ||
+        point_in_triangle(pts2[2], pts2[0], pts2[1], pts2[3]) ||
+        point_in_triangle(pts2[1], pts2[0], pts2[2], pts2[3]) ||
+        point_in_triangle(pts2[0], pts2[1], pts2[2], pts2[3])) {
+        return true;
+    }
+
+    // 4. Oriented projective consistency check (cheirality / line-side preservation)
+    auto line_eval = [](const Point2D& a, const Point2D& b, const Point2D& p) {
+        return (b.y - a.y) * (p.x - a.x) - (b.x - a.x) * (p.y - a.y);
+    };
+
+    const std::size_t pairs[6][2] = {{0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}};
+    const std::size_t others[6][2] = {{2, 3}, {1, 3}, {1, 2}, {0, 3}, {0, 2}, {0, 1}};
+
+    for (int idx = 0; idx < 6; ++idx) {
+        std::size_t i = pairs[idx][0], j = pairs[idx][1];
+        std::size_t k = others[idx][0], l = others[idx][1];
+
+        double d1_k = line_eval(pts1[i], pts1[j], pts1[k]);
+        double d1_l = line_eval(pts1[i], pts1[j], pts1[l]);
+        double d2_k = line_eval(pts2[i], pts2[j], pts2[k]);
+        double d2_l = line_eval(pts2[i], pts2[j], pts2[l]);
+
+        double prod1 = d1_k * d1_l;
+        double prod2 = d2_k * d2_l;
+
+        if ((prod1 < -1e-9 && prod2 > 1e-9) || (prod1 > 1e-9 && prod2 < -1e-9)) {
+            return true;
+        }
+    }
+
+    // 5. Quad minimum area check
+    auto tri_area = [](const Point2D& a, const Point2D& b, const Point2D& c) {
+        return 0.5 * std::abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
+    };
+
+    double area1 = std::max(tri_area(pts1[0], pts1[1], pts1[2]) + tri_area(pts1[0], pts1[2], pts1[3]),
+                            tri_area(pts1[0], pts1[1], pts1[3]) + tri_area(pts1[1], pts1[2], pts1[3]));
+    double area2 = std::max(tri_area(pts2[0], pts2[1], pts2[2]) + tri_area(pts2[0], pts2[2], pts2[3]),
+                            tri_area(pts2[0], pts2[1], pts2[3]) + tri_area(pts2[1], pts2[2], pts2[3]));
+
+    if (area1 < min_area || area2 < min_area) {
+        return true;
+    }
+
+    return false;
 }
 
 }  // namespace image_search
