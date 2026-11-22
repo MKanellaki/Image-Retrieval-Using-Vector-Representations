@@ -115,4 +115,80 @@ bool is_degenerate_quad(const std::vector<Point2D>& pts1,
                         double collinear_tol = 1e-4,
                         double min_area = 1.0);
 
+// =========================================================================
+// Hartley Normalization & DLT
+// =========================================================================
+
+// Hartley isotropic normalization for N >= 2 points:
+// Shifts centroid to origin and scales average Euclidean distance to sqrt(2).
+// Returns std::nullopt if points are coincident or average distance < 1e-12.
+std::optional<Normalization> compute_normalization(const std::vector<Point2D>& pts);
+
+// Normalized Direct Linear Transformation (DLT) using SVD.
+// Solves Ah = 0 in normalized coordinates, then denormalizes: H = T2^{-1} * H_n * T1.
+// Validates finite elements and numerical invertibility.
+// Returns std::nullopt if matches < 4, normalization fails, or SVD system is degenerate.
+std::optional<Homography> estimate_homography_dlt(const std::vector<Match2D>& matches);
+
+std::optional<Homography> estimate_homography_dlt(const std::vector<Point2D>& pts1,
+                                                 const std::vector<Point2D>& pts2);
+
+// =========================================================================
+// Inlier Evaluation & Refit
+// =========================================================================
+
+// Inlier evaluation result for a homography on a set of matches.
+struct InlierResult {
+    std::vector<std::size_t> inlier_indices;
+    std::vector<double> inlier_errors;
+    double median_error = 0.0;
+
+    std::size_t count() const;
+};
+
+// Computes the median of a vector of errors.
+// Returns NaN if vector is empty.
+double compute_median(std::vector<double> errors);
+
+// Evaluate inliers for a given homography on matches using threshold tau (pixels):
+// e_i(H) < tau.
+// Handles denominator check during projection.
+InlierResult evaluate_inliers(const Homography& H,
+                             const std::vector<Match2D>& matches,
+                             double tau = 3.0,
+                             double denom_tol = 1e-12);
+
+// Refit result containing the refined homography and final inliers evaluated on ALL matches.
+struct RefitResult {
+    Homography H;
+    InlierResult inliers;
+};
+
+// Refit homography using m = inlier_indices.size() >= 4 inliers:
+// 1. Computes new normalization T, T' from the m inliers.
+// 2. Solves 2m x 9 system via SVD to obtain H_refit = T'^{-1} * H_n * T.
+// 3. Re-evaluates reprojection errors on ALL M original matches to obtain final inliers.
+// Returns std::nullopt if m < 4 or estimation fails.
+std::optional<RefitResult> refit_homography(const std::vector<Match2D>& all_matches,
+                                           const std::vector<std::size_t>& best_inlier_indices,
+                                           double tau = 3.0);
+
+// =========================================================================
+// Corner Error Evaluation (PDF Page 3)
+// =========================================================================
+
+// Corner error between estimated homography and ground-truth homography:
+// E_corner = 1/4 * sum_{i=1}^4 || H_est(a_i) - H_gt(a_i) ||_2
+// Returns NaN if projection fails on any corner.
+double compute_corner_error(const Homography& H_est,
+                            const Homography& H_gt,
+                            const std::array<Point2D, 4>& corners);
+
+// Convenience overload for image dimensions width x height:
+// Uses corners: (0, 0), (width, 0), (width, height), (0, height).
+double compute_corner_error(const Homography& H_est,
+                            const Homography& H_gt,
+                            double width,
+                            double height);
+
 }  // namespace image_search

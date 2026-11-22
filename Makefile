@@ -33,7 +33,7 @@ TEST_BINS := $(patsubst tests/%.cpp,$(BUILD)/tests/%,$(TESTS))
 
 SANITIZE  ?= -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer
 
-.PHONY: all test run-tests debug clean
+.PHONY: all test run-tests test-homography debug clean
 
 all: $(TARGET)
 
@@ -44,6 +44,11 @@ $(BUILD)/%.o: src/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+# Specific rule for test_homography: only requires homography.o
+$(BUILD)/tests/test_homography: tests/test_homography.cpp $(BUILD)/homography.o
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $< $(BUILD)/homography.o -o $@
+
 # Each test links against every source file except main.cpp.
 $(BUILD)/tests/%: tests/%.cpp $(LIB_OBJS)
 	@mkdir -p $(dir $@)
@@ -53,6 +58,9 @@ $(BUILD)/tests/%: tests/%.cpp $(LIB_OBJS)
 # with the optimized objects.
 test:
 	$(MAKE) BUILD=build/test MODE="$(SANITIZE)" run-tests
+
+test-homography: $(BUILD)/tests/test_homography
+	@echo "== $<"; ./$< || exit 1
 
 run-tests: $(TEST_BINS)
 	@for t in $(TEST_BINS); do echo "== $$t"; ./$$t || exit 1; done

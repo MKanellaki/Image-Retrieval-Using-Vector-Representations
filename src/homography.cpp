@@ -329,4 +329,233 @@ bool is_degenerate_quad(const std::vector<Point2D>& pts1,
     return false;
 }
 
+// =========================================================================
+// Hartley Normalization & DLT
+// =========================================================================
+
+std::optional<Normalization> compute_normalization(const std::vector<Point2D>& pts) {
+    const std::size_t n = pts.size();
+    if (n < 2) {
+        return std::nullopt;
+    }
+
+    double mean_x = 0.0;
+    double mean_y = 0.0;
+    for (const auto& p : pts) {
+        mean_x += p.x;
+        mean_y += p.y;
+    }
+    mean_x /= static_cast<double>(n);
+    mean_y /= static_cast<double>(n);
+
+    double sum_dist = 0.0;
+    for (const auto& p : pts) {
+        double dx = p.x - mean_x;
+        double dy = p.y - mean_y;
+        sum_dist += std::sqrt(dx * dx + dy * dy);
+    }
+    double mean_dist = sum_dist / static_cast<double>(n);
+    if (mean_dist < 1e-12 || !std::isfinite(mean_dist)) {
+        return std::nullopt;
+    }
+
+    double s = std::sqrt(2.0) / mean_dist;
+    return Normalization{s, mean_x, mean_y};
+}
+
+std::optional<Homography> estimate_homography_dlt(const std::vector<Point2D>& pts1,
+                                                 const std::vector<Point2D>& pts2) {
+    const std::size_t n = pts1.size();
+    if (n < 4 || pts2.size() != n) {
+        return std::nullopt;
+    }
+
+    if (n == 4 && is_degenerate_quad(pts1, pts2)) {
+        return std::nullopt;
+    }
+
+    auto norm1 = compute_normalization(pts1);
+    auto norm2 = compute_normalization(pts2);
+    if (!norm1 || !norm2) {
+        return std::nullopt;
+    }
+
+    // Build system matrix A: 2n x 9
+    Eigen::MatrixXd A(2 * n, 9);
+    for (std::size_t i = 0; i < n; ++i) {
+        Point2D p1 = norm1->transform(pts1[i]);
+        Point2D p2 = norm2->transform(pts2[i]);
+
+        double x = p1.x, y = p1.y;
+        double u = p2.x, v = p2.y;
+
+        A.row(2 * i)     << -x, -y, -1.0,  0.0,  0.0,  0.0,  u * x, u * y, u;
+        A.row(2 * i + 1) <<  0.0,  0.0,  0.0, -x, -y, -1.0,  v * x, v * y, v;
+    }
+
+    // Solve Ah = 0 via SVD
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullV);
+    const auto& sv = svd.singularValues();
+
+    // Check condition / rank: 8th singular value (index 7) should be non-zero
+    if (sv(7) < 1e-10) {
+        return std::nullopt;
+    }
+
+    // Smallest singular value is at index 8
+    Eigen::VectorXd h = svd.matrixV().col(8);
+
+    Eigen::Matrix3d H_n;
+    H_n << h(0), h(1), h(2),
+           h(3), h(4), h(5),
+           h(6), h(7), h(8);
+
+    // Normalization matrices:
+    // T1: shifts centroid of pts1 to origin, scales by s1
+    // T2: shifts centroid of pts2 to origin, scales by s2
+    // H = T2^{-1} * H_n * T1
+    Eigen::Matrix3d T1;
+    T1 << norm1->s, 0.0, -norm1->s * norm1->mean_x,
+          0.0, norm1->s, -norm1->s * norm1->mean_y,
+          0.0, 0.0, 1.0;
+
+    Eigen::Matrix3d T2_inv;
+    T2_inv << 1.0 / norm2->s, 0.0, norm2->mean_x,
+              0.0, 1.0 / norm2->s, norm2->mean_y,
+              0.0, 0.0, 1.0;
+
+    Eigen::Matrix3d H_denorm = T2_inv * H_n * T1;
+
+    Homography result;
+    for (int r = 0; r < 3; ++r) {
+        for (int c = 0; c < 3; ++c) {
+            result(r, c) = H_denorm(r, c);
+        }
+    }
+
+    result.normalize_scale();
+
+    if (!result.is_finite() || !result.is_invertible()) {
+        return std::nullopt;
+    }
+
+    return result;
+}
+
+std::optional<Homography> estimate_homography_dlt(const std::vector<Match2D>& matches) {
+    std::vector<Point2D> pts1, pts2;
+    pts1.reserve(matches.size());
+    pts2.reserve(matches.size());
+    for (const auto& m : matches) {
+        pts1.push_back(m.p1);
+        pts2.push_back(m.p2);
+    }
+    return estimate_homography_dlt(pts1, pts2);
+}
+
+// =========================================================================
+// Inlier Evaluation & Refit
+// =========================================================================
+
+std::size_t InlierResult::count() const {
+    return inlier_indices.size();
+}
+
+double compute_median(std::vector<double> errors) {
+    if (errors.empty()) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    std::sort(errors.begin(), errors.end());
+    std::size_t n = errors.size();
+    if (n % 2 == 1) {
+        return errors[n / 2];
+    }
+    return 0.5 * (errors[n / 2 - 1] + errors[n / 2]);
+}
+
+InlierResult evaluate_inliers(const Homography& H,
+                             const std::vector<Match2D>& matches,
+                             double tau,
+                             double denom_tol) {
+    InlierResult res;
+    res.inlier_indices.reserve(matches.size());
+    res.inlier_errors.reserve(matches.size());
+
+    for (std::size_t i = 0; i < matches.size(); ++i) {
+        double err = H.reprojection_error(matches[i].p1, matches[i].p2, denom_tol);
+        if (std::isfinite(err) && err < tau) {
+            res.inlier_indices.push_back(i);
+            res.inlier_errors.push_back(err);
+        }
+    }
+
+    res.median_error = compute_median(res.inlier_errors);
+    return res;
+}
+
+std::optional<RefitResult> refit_homography(const std::vector<Match2D>& all_matches,
+                                           const std::vector<std::size_t>& best_inlier_indices,
+                                           double tau) {
+    const std::size_t m = best_inlier_indices.size();
+    if (m < 4) {
+        return std::nullopt;
+    }
+
+    std::vector<Match2D> inlier_matches;
+    inlier_matches.reserve(m);
+    for (std::size_t idx : best_inlier_indices) {
+        if (idx < all_matches.size()) {
+            inlier_matches.push_back(all_matches[idx]);
+        }
+    }
+    if (inlier_matches.size() < 4) {
+        return std::nullopt;
+    }
+
+    auto H_refit = estimate_homography_dlt(inlier_matches);
+    if (!H_refit) {
+        return std::nullopt;
+    }
+
+    // Re-evaluate on ALL original matches
+    InlierResult final_inliers = evaluate_inliers(*H_refit, all_matches, tau);
+    if (final_inliers.count() < 4) {
+        return std::nullopt;
+    }
+
+    return RefitResult{*H_refit, final_inliers};
+}
+
+// =========================================================================
+// Corner Error Evaluation (PDF Page 3)
+// =========================================================================
+
+double compute_corner_error(const Homography& H_est,
+                            const Homography& H_gt,
+                            const std::array<Point2D, 4>& corners) {
+    double total_err = 0.0;
+    for (const auto& pt : corners) {
+        auto p_est = H_est.project(pt);
+        auto p_gt = H_gt.project(pt);
+        if (!p_est || !p_gt) {
+            return std::numeric_limits<double>::quiet_NaN();
+        }
+        total_err += p_est->distance_to(*p_gt);
+    }
+    return total_err / 4.0;
+}
+
+double compute_corner_error(const Homography& H_est,
+                            const Homography& H_gt,
+                            double width,
+                            double height) {
+    std::array<Point2D, 4> corners = {
+        Point2D(0.0, 0.0),
+        Point2D(width, 0.0),
+        Point2D(width, height),
+        Point2D(0.0, height)
+    };
+    return compute_corner_error(H_est, H_gt, corners);
+}
+
 }  // namespace image_search
