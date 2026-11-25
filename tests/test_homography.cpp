@@ -176,10 +176,14 @@ int main() {
         };
         assert(is_degenerate_quad(col_quad, square2));
 
-        // Concave quad (point inside triangle formed by other three)
+        // Concave quad (point inside triangle of the other three) is NOT degenerate by itself
         std::vector<Point2D> concave_quad = {
             {0.0, 0.0}, {100.0, 0.0}, {50.0, 100.0}, {50.0, 20.0}
         };
+        std::vector<Point2D> concave_shifted;
+        for (const auto& p : concave_quad) concave_shifted.emplace_back(p.x + 10.0, p.y + 10.0);
+        assert(!is_degenerate_quad(concave_quad, concave_shifted));
+        // but paired with a convex quad the orientation check rejects it (no homography does that)
         assert(is_degenerate_quad(concave_quad, square2));
 
         // Bowtie / self-intersecting twist (crossing diagonals order flipped)

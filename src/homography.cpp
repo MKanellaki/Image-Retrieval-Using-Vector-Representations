@@ -232,8 +232,8 @@ bool has_collinear_triplet(const std::vector<Point2D>& pts, double tol) {
                 if (max_edge < 1e-12) {
                     return true;
                 }
-                double perp_dist = area2 / max_edge;
-                if (perp_dist < tol) {
+                double eta = area2 / (max_edge * max_edge);
+                if (eta < tol) {
                     return true;
                 }
             }
@@ -260,34 +260,7 @@ bool is_degenerate_quad(const std::vector<Point2D>& pts1,
         return true;
     }
 
-    // 3. Check for concave quadrilateral (one point inside the triangle of the other three)
-    auto point_in_triangle = [](const Point2D& p, const Point2D& a, const Point2D& b, const Point2D& c) {
-        auto cross = [](const Point2D& p1, const Point2D& p2, const Point2D& p3) {
-            return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
-        };
-        double d1 = cross(p, a, b);
-        double d2 = cross(p, b, c);
-        double d3 = cross(p, c, a);
-        bool has_neg = (d1 < -1e-9) || (d2 < -1e-9) || (d3 < -1e-9);
-        bool has_pos = (d1 > 1e-9) || (d2 > 1e-9) || (d3 > 1e-9);
-        return !(has_neg && has_pos);
-    };
-
-    if (point_in_triangle(pts1[3], pts1[0], pts1[1], pts1[2]) ||
-        point_in_triangle(pts1[2], pts1[0], pts1[1], pts1[3]) ||
-        point_in_triangle(pts1[1], pts1[0], pts1[2], pts1[3]) ||
-        point_in_triangle(pts1[0], pts1[1], pts1[2], pts1[3])) {
-        return true;
-    }
-
-    if (point_in_triangle(pts2[3], pts2[0], pts2[1], pts2[2]) ||
-        point_in_triangle(pts2[2], pts2[0], pts2[1], pts2[3]) ||
-        point_in_triangle(pts2[1], pts2[0], pts2[2], pts2[3]) ||
-        point_in_triangle(pts2[0], pts2[1], pts2[2], pts2[3])) {
-        return true;
-    }
-
-    // 4. Oriented projective consistency check (cheirality / line-side preservation)
+    // 3. Oriented projective consistency check (cheirality / line-side preservation)
     auto line_eval = [](const Point2D& a, const Point2D& b, const Point2D& p) {
         return (b.y - a.y) * (p.x - a.x) - (b.x - a.x) * (p.y - a.y);
     };
@@ -312,7 +285,7 @@ bool is_degenerate_quad(const std::vector<Point2D>& pts1,
         }
     }
 
-    // 5. Quad minimum area check
+    // 4. Quad minimum area check
     auto tri_area = [](const Point2D& a, const Point2D& b, const Point2D& c) {
         return 0.5 * std::abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
     };
