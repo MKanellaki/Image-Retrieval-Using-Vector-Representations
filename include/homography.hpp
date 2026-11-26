@@ -4,23 +4,9 @@
 #include <cstddef>
 #include <optional>
 #include <vector>
+#include "types.hpp"
 
 namespace image_search {
-
-// 2D Point with double precision coordinates.
-struct Point2D {
-    double x = 0.0;
-    double y = 0.0;
-
-    Point2D() = default;
-    Point2D(double x_, double y_);
-
-    bool operator==(const Point2D& o) const;
-    bool operator!=(const Point2D& o) const;
-
-    double distance_to(const Point2D& o) const;
-    double squared_distance_to(const Point2D& o) const;
-};
 
 // 2D Point match / correspondence between source image (p1) and target image (p2).
 struct Match2D {

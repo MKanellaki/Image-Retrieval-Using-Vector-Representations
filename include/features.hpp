@@ -4,19 +4,34 @@
 #include <memory>
 #include <string>
 #include <functional>
+#include <vector>
 #include "seed.hpp"
 #include "types.hpp"
+
 
 namespace image_search {
 
 constexpr std::size_t kSiftDim = 128;
 
-// Reads an image as grayscale and returns all SIFT descriptors as an n x 128 matrix (n may be 0)
-//  OpenCV is used only inside features.cpp
-// The same function is used for HPatches (.ppm) and MIRFlickr (.jpg)
+// All SIFT features of one image. points[i] is the location of descriptors.row(i)
+// Coordinates are in pixels of the full-resolution image (the frame the HPatches H_1_j uses)
+struct ImageFeatures {
+    std::uint32_t width = 0, height = 0;   // image size (I1 corners for the corner error)
+    std::vector<Point2D> points;
+    Matrix descriptors{0, kSiftDim};       // n x 128
+    std::size_t size() const { return points.size(); }
+};
+
+// Reads an image as grayscale and runs OpenCV SIFT (default parameters) on it
+//   extract_features: keypoint positions + descriptors, points[i] belongs to descriptors.row(i),
+//                     plus the image width and height. Used by geometric verification
+//   extract:          only the n x 128 descriptor matrix (n may be 0). Used by BoVW;
+//                     always equals extract_features(path).descriptors
+// OpenCV is used only inside features.cpp
+// The same functions are used for HPatches (.ppm) and MIRFlickr (.jpg)
 // Throws std::runtime_error if the file cannot be read
 // a missing or corrupt image is an input error, not "an image with zero descriptors"
-// Not thread-safe on a single instance: give each thread its own extractor
+// Not thread-safe on a single instance: give each thread its own extractorclass
 class SiftExtractor {
 public:
     SiftExtractor();
@@ -27,6 +42,7 @@ public:
     SiftExtractor(const SiftExtractor&) = delete;
     SiftExtractor& operator=(const SiftExtractor&) = delete;
 
+    ImageFeatures extract_features(const std::string& path) const;
     Matrix extract(const std::string& path) const;
 
 private:

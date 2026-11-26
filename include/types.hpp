@@ -29,6 +29,21 @@ private:
     std::vector<float> data_;
 };
 
+// 2D Point with double precision coordinates.
+struct Point2D {
+    double x = 0.0;
+    double y = 0.0;
+
+    Point2D() = default;
+    Point2D(double x_, double y_);
+
+    bool operator==(const Point2D& o) const;
+    bool operator!=(const Point2D& o) const;
+
+    double distance_to(const Point2D& o) const;
+    double squared_distance_to(const Point2D& o) const;
+};
+
 using ImageIndex = std::uint32_t;   // row index into the database matrix
 
 enum class Split { Train, Validation, Test };

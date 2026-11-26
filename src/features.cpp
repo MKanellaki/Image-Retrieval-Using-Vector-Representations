@@ -24,30 +24,41 @@ SiftExtractor::~SiftExtractor() = default;
 SiftExtractor::SiftExtractor(SiftExtractor&&) noexcept = default;
 SiftExtractor& SiftExtractor::operator=(SiftExtractor&&) noexcept = default;
 
-Matrix SiftExtractor::extract(const std::string& path) const {
+ImageFeatures SiftExtractor::extract_features(const std::string& path) const {
     cv::Mat gray = cv::imread(path, cv::IMREAD_GRAYSCALE);
-    if(gray.empty())
+    if (gray.empty())
         throw std::runtime_error("cannot read image: " + path);
 
     std::vector<cv::KeyPoint> keypoints;
     cv::Mat desc;
     impl_->sift->detectAndCompute(gray, cv::noArray(), keypoints, desc);
 
-    Matrix out(0, kSiftDim);
-    if(desc.empty())
-        return out;                                   // valid: zero descriptors
+    ImageFeatures f;
+    f.width  = static_cast<std::uint32_t>(gray.cols);
+    f.height = static_cast<std::uint32_t>(gray.rows);
+    if (desc.empty())
+        return f;
 
-    if(desc.cols != static_cast<int>(kSiftDim))
+    if (desc.cols != static_cast<int>(kSiftDim))
         throw std::runtime_error("unexpected SIFT descriptor size in " + path);
-    if(desc.type() != CV_32F)
+    if (static_cast<std::size_t>(desc.rows) != keypoints.size())
+        throw std::runtime_error("keypoint/descriptor count mismatch in " + path);
+    if (desc.type() != CV_32F)
         desc.convertTo(desc, CV_32F);
 
-    out = Matrix(static_cast<std::size_t>(desc.rows), kSiftDim);
-    for(int r = 0; r < desc.rows; ++r) {             // row-wise copy: no continuity assumption
-        const float* src = desc.ptr<float>(r);
-        std::copy(src, src + kSiftDim, out.row(static_cast<std::size_t>(r)));
+    const auto n = static_cast<std::size_t>(desc.rows);
+    f.descriptors = Matrix(n, kSiftDim);
+    f.points.reserve(n);
+    for (std::size_t r = 0; r < n; ++r) {
+        const float* src = desc.ptr<float>(static_cast<int>(r));
+        std::copy(src, src + kSiftDim, f.descriptors.row(r));
+        f.points.emplace_back(keypoints[r].pt.x, keypoints[r].pt.y);
     }
-    return out;
+    return f;
+}
+
+Matrix SiftExtractor::extract(const std::string& path) const {
+    return extract_features(path).descriptors;
 }
 
 // sampling
