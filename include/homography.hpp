@@ -102,13 +102,13 @@ public:
 bool has_duplicate_points(const std::vector<Point2D>& pts, double tol = 1e-6);
 
 // 2. Check for collinear triplets among points (all combinations of 3 points).
-//    Uses perpendicular distance from the 3rd point to the line connecting the two furthest points.
+// A triple is (near) collinear if eta = |(b-a) x (c-a)| / L^2 < tol, L = longest side
 bool has_collinear_triplet(const std::vector<Point2D>& pts, double tol = 1e-4);
 
 // 3. Check if 4 correspondences form a degenerate or nearly degenerate quad:
 //    - Duplicate points in pts1 or pts2
 //    - Collinear triplets in pts1 or pts2
-//    - Directed line / orientation consistency check (cheirality / convexity preservation)
+//    - Directed line / orientation consistency check (same side of every line ij in both images)
 //    - Minimum quad area check (shoelace area >= min_area)
 bool is_degenerate_quad(const std::vector<Point2D>& pts1,
                         const std::vector<Point2D>& pts2,
