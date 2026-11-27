@@ -1,11 +1,9 @@
 // ./search: builds (or loads) the BoW vectors, builds the chosen index over the m query set's database, runs every query and writes the results file
 #include <chrono>
-#include <climits>
 #include <cstdio>
 #include <exception>
 #include <functional>
 #include <iostream>
-#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -13,14 +11,10 @@
 #include "args.hpp"
 #include "bow_pipeline.hpp"
 #include "dataset.hpp"
-#include "exact.hpp"
 #include "features.hpp"
-#include "hypercube.hpp"
-#include "ivfflat.hpp"
-#include "ivfpq.hpp"
-#include "lsh.hpp"
 #include "metrics.hpp"
 #include "output.hpp"
+#include "search_index.hpp"
 
 using namespace image_search;
 
@@ -28,57 +22,8 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 
-// The one way main calls every method: a query vector in, ranked database rows out
-using SearchFn = std::function<std::vector<ImageIndex>(const float*)>;
-
 double ms_since(Clock::time_point t0) {
     return std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
-}
-
-int to_int(std::size_t v) { return v > static_cast<std::size_t>(INT_MAX) ? INT_MAX : static_cast<int>(v); }
-
-// Builds the chosen index and wraps its query() in a SearchFn
-// The index is owned by the lambda (shared_ptr, because std::function needs a copyable callable)
-// Every index keeps a pointer to `db`, so `db` must outlive the result
-SearchFn make_search(const Args& args, const Matrix& db) {
-    const std::size_t n = db.rows();
-    switch(args.method) {
-        case Method::Exact: {
-            auto ix = std::make_shared<const ExactIndex>(db);
-            return [ix](const float* q) { return ix->query(q, kOutputRanks); };
-        }
-        case Method::LSH: {
-            std::fprintf(stderr, "[search] LSH: k = %d, L = %d, w = %g\n", args.lsh.k, args.lsh.L, args.lsh.w);
-            auto ix = std::make_shared<const LSHIndex>(db, args.lsh);
-            return [ix](const float* q) { return ix->query(q, kOutputRanks); };
-        }
-        case Method::Hypercube: {
-            std::fprintf(stderr, "[search] Hypercube: kproj = %d, M = %d, probes = %d, w = %g\n", args.hypercube.k, args.hypercube.M, args.hypercube.probes, args.hypercube.w);
-            auto ix = std::make_shared<const HypercubeIndex>(db, args.hypercube);
-            return [ix](const float* q) { return ix->query(q, kOutputRanks); };
-        }
-        case Method::IVFFlat: {
-            IVFFlatParams p;
-            p.k = to_int(resolve_kclusters(args.ivfflat.kclusters, n));
-            p.nprobe = to_int(args.ivfflat.nprobe);
-            p.seed = args.seed;
-            std::fprintf(stderr, "[search] IVFFlat: kclusters = %d, nprobe = %d\n", p.k, p.nprobe);
-            auto ix = std::make_shared<const IVFFlatIndex>(db, p);
-            return [ix](const float* q) { return ix->query(q, kOutputRanks); };
-        }
-        case Method::IVFPQ: {
-            IVFPQParams p;
-            p.k = to_int(resolve_kclusters(args.ivfpq.kclusters, n));
-            p.nprobe = to_int(args.ivfpq.nprobe);
-            p.m = to_int(args.ivfpq.M);
-            p.k_sub = 1 << args.ivfpq.nbits;     // nbits <= 16, checked by parse_args
-            p.seed = args.seed;
-            std::fprintf(stderr, "[search] IVFPQ: kclusters = %d, nprobe = %d, M = %d, nbits = %zu\n", p.k, p.nprobe, p.m, args.ivfpq.nbits);
-            auto ix = std::make_shared<const IVFPQIndex>(db, p);
-            return [ix](const float* q) { return ix->query(q, kOutputRanks); };
-        }
-    }
-    throw std::logic_error("unknown method");
 }
 
 // "v_bird/1" -> "v_bird"
@@ -159,7 +104,7 @@ int run(const Args& args) {
         const float* q = queries.vectors.row(i);
 
         const auto t0 = Clock::now();
-        std::vector<ImageIndex> ranked = search(q);
+        std::vector<ImageIndex> ranked = search(q, kOutputRanks);
         const double ms = ms_since(t0);
 
         QueryResult r;
